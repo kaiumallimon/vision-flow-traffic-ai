@@ -1,42 +1,54 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { ShieldCheck, Lock } from 'lucide-react';
+
+const API_BASE_URL = "/api"; // Using your proxy setup
 
 const Login = () => {
+  const navigate = useNavigate();
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    const email = e.target[0].value;
+    const password = e.target[1].value;
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/login`, { email, password });
+      if (response.data.message === "Login successful") {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        navigate('/dashboard');
+      } else {
+        alert(response.data.error);
+      }
+    } catch (error) {
+      alert("Backend error. Check Terminal!");
+    }
+  };
+
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* Left Side: Branding */}
-      <div className="hidden lg:flex w-1/2 bg-indigo-900 text-white justify-center items-center p-12">
-        <div className="max-w-md">
-          <h1 className="text-5xl font-bold mb-6">Vision Flow AI</h1>
-          <p className="text-lg opacity-80">
-            Advanced Traffic Analysis & Thesis Management. 
-            Harnessing YOLO and Gemini for smarter urban flow.
-          </p>
+    <div className="flex min-h-screen bg-slate-50 font-sans">
+      <div className="hidden lg:flex w-1/2 bg-blue-600 text-white justify-center items-center p-12 relative">
+        <div className="z-10 text-center">
+          <ShieldCheck size={60} className="mx-auto mb-6" />
+          <h1 className="text-5xl font-black mb-4 tracking-tighter">VISION FLOW AI</h1>
+          <p className="text-xl opacity-90">Thesis Project v1.0</p>
         </div>
       </div>
 
-      {/* Right Side: Form */}
       <div className="w-full lg:w-1/2 flex justify-center items-center p-8">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-10">
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h2>
-          <p className="text-gray-500 mb-8">Please enter your details to login.</p>
-          
-          <form className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email Address</label>
-              <input type="email" className="w-full px-4 py-3 mt-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="zul@example.com" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
-              <input type="password" className="w-full px-4 py-3 mt-1 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="••••••••" />
-            </div>
-            <button className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-lg">
-              Sign In
+        <div className="w-full max-w-md bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl p-10">
+          <h2 className="text-3xl font-black text-slate-900 mb-6">Sign In</h2>
+          <form className="space-y-6" onSubmit={handleLogin}>
+            <input type="email" required className="w-full px-5 py-4 bg-slate-50 border rounded-2xl" placeholder="Email" />
+            <input type="password" required className="w-full px-5 py-4 bg-slate-50 border rounded-2xl" placeholder="Password" />
+            <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black uppercase">
+              Authorize & Enter
             </button>
           </form>
-
-          <div className="mt-8 text-center text-sm text-gray-600">
-            Don't have an account? <a href="#" className="text-indigo-600 font-bold hover:underline">Register</a>
-          </div>
+          <p className="mt-8 text-center text-sm font-bold text-slate-500">
+            No account? <button onClick={() => navigate('/register')} className="text-blue-600 underline">Register Now</button>
+          </p>
         </div>
       </div>
     </div>

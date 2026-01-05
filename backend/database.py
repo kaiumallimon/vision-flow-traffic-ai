@@ -1,29 +1,36 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import datetime
 
-# SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root@localhost:3306/zul_ai_advisor"
-# For now, let's use SQLite for faster testing, then swap to XAMPP MySQL later
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+# Database location
+DATABASE_URL = "sqlite:///./test.db"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Create the connection engine
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# Table for storing AI results
 class DetectionHistory(Base):
-    __tablename__ = "history"
+    __tablename__ = "analysis_history"
     id = Column(Integer, primary_key=True, index=True)
-    object_name = Column(String(100))
-    advice = Column(Text)
-    image_path = Column(String(255))
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    object_name = Column(String)
+    advice = Column(String)
+    image_path = Column(String)
 
-Base.metadata.create_all(bind=engine)
+# Table for storing User accounts
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    first_name = Column(String)
+    last_name = Column(String)
+    email = Column(String, unique=True, index=True)
+    password = Column(String)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Function to create the tables in test.db
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    print("Database tables created successfully!")
+
+if __name__ == "__main__":
+    init_db()
