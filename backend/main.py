@@ -18,7 +18,8 @@ app = FastAPI()
 # Enable CORS for React communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # This allows your Vercel site to connect
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

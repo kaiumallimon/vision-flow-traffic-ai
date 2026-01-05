@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck, Lock } from 'lucide-react';
 
-const API_BASE_URL = "/api";
+//const API_BASE_URL = "/api";
+const API_BASE_URL = "https://lilith-transposable-clarence.ngrok-free.dev";
 
 const Login = () => {
   const navigate = useNavigate();
