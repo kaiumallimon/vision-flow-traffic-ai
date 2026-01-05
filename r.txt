@@ -1,0 +1,25 @@
+python -m uvicorn backend.main:app --reload
+
+python -m uvicorn backend.main:app --reload --port 8000
+
+npm run dev
+
+ngrok http 8000
+
+
+ngrok http 5173
+
+
+https://lilith-transposable-clarence.ngrok-free.dev
+
+
+
+ngrok http 5173 --domain=lilith-transposable-clarence.ngrok-free.dev
+
+
+
+http://127.0.0.1:8000/docs#/default/analyze_image_analyze_post
+
+
+
+E:\VS Code\Projects\Thesis\SW000\frontend

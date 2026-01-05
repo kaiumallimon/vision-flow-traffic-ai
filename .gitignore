@@ -1,0 +1,19 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+
+# Node/React
+node_modules/
+dist/
+.eslintcache
+
+# AI Models & Large Files
+*.pt
+*.onnx
+runs/
+
+# System
+.DS_Store
+Thumbs.db

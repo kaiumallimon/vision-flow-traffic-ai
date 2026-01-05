@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* This ensures your layout uses the full screen properly */
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900;
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+}
