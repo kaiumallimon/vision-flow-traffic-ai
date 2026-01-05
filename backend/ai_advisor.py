@@ -1,34 +1,43 @@
 import os
-from openai import OpenAI
+import requests
 from dotenv import load_dotenv
 
-# Load the .env file from the parent directory
+# 1. Load the variables from the .env file
 load_dotenv()
 
-# DEBUG: This will print in your terminal so you can see if the key is loading
-api_key = os.getenv("OPENROUTER_API_KEY")
-if not api_key:
-    print("❌ ERROR: OPENROUTER_API_KEY not found in .env file!")
-else:
-    print("✅ API Key loaded successfully.")
+# 2. Retrieve the API Key from the environment
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=api_key, # Use the variable we just checked
-)
+def get_contextual_advice(detected_object):
+    """
+    Sends the detected object name to Gemini (via OpenRouter) 
+    and gets a professional advice response.
+    """
+    
+    if not OPENROUTER_API_KEY:
+        return "System Error: API Key missing in .env file."
 
-def get_contextual_advice(label: str):
-    if label == "Nothing detected":
-        return "System ready. No objects currently requiring advice."
+    prompt = f"As an AI Traffic and Safety Advisor, I have just detected a '{detected_object}' on the road. Provide a one-sentence safety advice for a driver or city planner regarding this."
 
     try:
-        response = client.chat.completions.create(
-            model="google/gemini-2.0-flash-001",
-            messages=[
-                {"role": "system", "content": "You are a safety assistant. Give a 10-word safety tip for the object."},
-                {"role": "user", "content": f"Object: {label}"}
-            ]
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "google/gemini-2.0-flash-001",
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ]
+            }
         )
-        return response.choices[0].message.content
+        
+        if response.status_code == 200:
+            return response.json()['choices'][0]['message']['content']
+        else:
+            return f"Advisor currently unavailable (Error: {response.status_code})"
+            
     except Exception as e:
-        return f"Advice error: {str(e)}"
+        return f"Advice could not be generated: {str(e)}"

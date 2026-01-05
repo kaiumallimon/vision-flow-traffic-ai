@@ -17,3 +17,6 @@ runs/
 # System
 .DS_Store
 Thumbs.db
+
+
+.env
