@@ -2,7 +2,15 @@ python -m uvicorn backend.main:app --reload
 
 python -m uvicorn backend.main:app --reload --port 8000
 
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
+
+client id
+53161265178-lm326anrb5k8hmp3ql2i5ls6kkfuti8l.apps.googleusercontent.com
+
 npm run dev
+
+
+npm run build
 
 ngrok http 8000
 
@@ -23,3 +31,6 @@ http://127.0.0.1:8000/docs#/default/analyze_image_analyze_post
 
 
 E:\VS Code\Projects\Thesis\SW000\frontend
+
+
+.\venv\Scripts\Activate.ps1

@@ -1,70 +1,57 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { ShieldCheck, Lock } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from "jwt-decode";
 
-//const API_BASE_URL = "/api";
 const API_BASE_URL = "https://lilith-transposable-clarence.ngrok-free.dev";
 
 const Login = () => {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    const email = e.target[0].value;
-    const password = e.target[1].value;
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await axios.post(`${API_BASE_URL}/login`, { email: e.target[0].value, password: e.target[1].value });
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+            navigate('/dashboard');
+        } catch (err) { alert("Invalid login!"); }
+    };
 
-    try {
-      const response = await axios.post(`${API_BASE_URL}/login`, { email, password });
-      if (response.data.message === "Login successful") {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+    const handleGoogle = async (response) => {
+        const details = jwtDecode(response.credential);
+        const res = await axios.post(`${API_BASE_URL}/auth/google`, {
+            email: details.email, first_name: details.given_name, last_name: details.family_name, google_id: details.sub
+        });
+        localStorage.setItem('user', JSON.stringify(res.data.user));
         navigate('/dashboard');
-      } else {
-        alert(response.data.error || "Invalid Credentials");
-      }
-    } catch (error) {
-      alert("Backend connection failed! Check if Python is running.");
-    }
-  };
+    };
 
-  return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
-      <div className="hidden lg:flex w-1/2 bg-blue-600 text-white justify-center items-center p-12">
-        <div className="text-center">
-          <ShieldCheck size={80} className="mx-auto mb-6" />
-          <h1 className="text-5xl font-black tracking-tighter">VISION FLOW AI</h1>
-          <p className="text-xl opacity-80 mt-4 font-bold uppercase tracking-widest text-blue-200">Industry Advisor v1.0</p>
-        </div>
-      </div>
-
-      <div className="w-full lg:w-1/2 flex justify-center items-center p-8">
-        <div className="w-full max-w-md bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl p-10">
-          <div className="mb-10">
-            <h2 className="text-3xl font-black text-slate-900 mb-2">Sign In</h2>
-            <p className="text-slate-500 font-medium text-sm">Access your secure AI dashboard</p>
-          </div>
-          
-          <form className="space-y-6" onSubmit={handleLogin}>
-            <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Email Address</label>
-              <input type="email" required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none" placeholder="name@email.com" />
+    return (
+        <GoogleOAuthProvider clientId="53161265178-lm326anrb5k8hmp3ql2i5ls6kkfuti8l.apps.googleusercontent.com">
+            <div className="flex min-h-screen bg-slate-100">
+                <div className="hidden lg:flex w-1/2 bg-blue-700 text-white flex-col justify-center items-center p-12">
+                    <ShieldCheck size={100} />
+                    <h1 className="text-4xl font-bold mt-4 uppercase">Vision Flow AI</h1>
+                    <p className="text-blue-200 mt-2">Thesis Project by Zul</p>
+                </div>
+                <div className="w-full lg:w-1/2 flex justify-center items-center p-8">
+                    <div className="w-full max-w-md bg-white p-10 rounded-3xl shadow-xl">
+                        <h2 className="text-2xl font-bold text-center mb-8">Sign In</h2>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <input type="email" placeholder="Email" required className="w-full p-4 border rounded-xl" />
+                            <input type="password" placeholder="Password" required className="w-full p-4 border rounded-xl" />
+                            <button className="w-full bg-blue-600 text-white p-4 rounded-xl font-bold">LOGIN</button>
+                        </form>
+                        <div className="text-center my-4 text-gray-400">OR</div>
+                        <div className="flex justify-center"><GoogleLogin onSuccess={handleGoogle} shape="pill" /></div>
+                        <p className="text-center mt-6">Don't have an account? <Link to="/register" className="text-blue-600 font-bold">Register</Link></p>
+                    </div>
+                </div>
             </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Password</label>
-              <input type="password" required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none" placeholder="••••••••" />
-            </div>
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-2">
-              <Lock size={18} /> Authorize & Enter
-            </button>
-          </form>
-
-          <p className="mt-8 text-center text-sm font-bold text-slate-500 uppercase tracking-tight">
-            Need an account? <button onClick={() => navigate('/register')} className="text-blue-600 hover:underline">Register Now</button>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+        </GoogleOAuthProvider>
+    );
 };
 
 export default Login;

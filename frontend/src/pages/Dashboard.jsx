@@ -3,7 +3,8 @@ import axios from 'axios';
 import { Upload, Activity, ShieldCheck, Eye, RefreshCcw, Clock, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const API_BASE_URL = "/api";
+// Empty string allows it to use the same Ngrok URL as the frontend
+const API_BASE_URL = ""; 
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -46,7 +47,7 @@ function Dashboard() {
       setResult(response.data);
       fetchHistory(); 
     } catch (error) {
-      alert("Analysis failed. Ensure Backend and Ngrok are running!");
+      alert("Analysis failed. Ensure Backend is running and you clicked 'Visit Site' on Ngrok!");
     } finally {
       setLoading(false);
     }
@@ -55,8 +56,6 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-10 font-sans text-slate-900">
       <div className="max-w-6xl mx-auto">
-        
-        {/* Header with Logout */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="bg-blue-600 p-3 rounded-2xl text-white">
@@ -72,17 +71,13 @@ function Dashboard() {
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
               Live: Ngrok Protected
             </div>
-            <button 
-              onClick={() => navigate('/login')}
-              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-            >
+            <button onClick={() => navigate('/login')} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
               <LogOut size={24} />
             </button>
           </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* UPLOAD SECTION */}
           <div className="lg:col-span-5">
             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Input Source</h3>
@@ -107,11 +102,9 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* RESULTS SECTION */}
           <div className="lg:col-span-7">
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm min-h-[500px]">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">AI Interpretation</h3>
-              
               {result ? (
                 <div className="space-y-6">
                   <div className="flex items-center gap-3">
@@ -140,7 +133,6 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* HISTORY SECTION */}
         <div className="mt-10 bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 mb-6">
             <Clock className="text-slate-400" size={20} />

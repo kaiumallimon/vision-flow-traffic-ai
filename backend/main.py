@@ -4,39 +4,40 @@ import time
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from email_validator import validate_email, EmailNotValidError # New Import
 from ultralytics import YOLO
 
-# Absolute imports from your backend folder
+# Project imports
 from backend.database import engine, Base, SessionLocal, DetectionHistory, User
 from backend.ai_advisor import get_contextual_advice
 from backend.model_logic import generate_gradcam
 
+# --- DATABASE INITIALIZATION ---
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
 
-# Enable CORS for React communication
+# --- CORS MIDDLEWARE ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # This allows your Vercel site to connect
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Setup folders for image storage
+# Folder setup for images
 UPLOAD_DIR = "backend/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static_uploads", StaticFiles(directory=UPLOAD_DIR), name="static_uploads")
 
-# Ensure tables are ready in test.db
-Base.metadata.create_all(bind=engine)
-
-# Load YOLO Model
-# We use 'cpu' to avoid the CUDA/GPU error you received
+# Load AI Model
 model = YOLO("yolo11n_openvino_model/", task="detect")
 
-# Database dependency
+# Database session dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -44,8 +45,8 @@ def get_db():
     finally:
         db.close()
 
-# --- AUTHENTICATION MODELS ---
-class UserRegister(BaseModel):
+# --- DATA MODELS ---
+class UserCreate(BaseModel):
     first_name: str
     last_name: str
     email: str
@@ -55,80 +56,112 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
-# --- AUTHENTICATION ENDPOINTS ---
+class SocialAuth(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    google_id: str
+
+# --- AUTHENTICATION ROUTES ---
+
 @app.post("/register")
-async def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+async def register(data: UserCreate, db: Session = Depends(get_db)):
+    # 1. VALIDATE IF EMAIL IS REAL (Domain Check)
+    try:
+        # deliverability=True checks if the domain actually exists on the internet
+        email_info = validate_email(data.email, check_deliverability=True)
+        valid_email = email_info.normalized
+    except EmailNotValidError as e:
+        # This stops fake emails like 'test@asdf123.com'
+        raise HTTPException(status_code=400, detail=f"Invalid or fake email: {str(e)}")
+
+    # 2. CHECK IF ALREADY EXISTS
+    existing_user = db.query(User).filter(User.email == valid_email).first()
     if existing_user:
-        return {"error": "Email already exists"}
+        raise HTTPException(status_code=400, detail="Email already registered")
     
     new_user = User(
-        first_name=user_data.first_name,
-        last_name=user_data.last_name,
-        email=user_data.email,
-        password=user_data.password
+        first_name=data.first_name,
+        last_name=data.last_name,
+        email=valid_email,
+        password=data.password
     )
     db.add(new_user)
     db.commit()
-    return {"message": "User registered successfully"}
+    return {"message": "Success"}
 
 @app.post("/login")
-async def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_data.email, User.password == user_data.password).first()
+async def login(data: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email, User.password == data.password).first()
     if not user:
-        return {"error": "Invalid credentials"}
-    return {
-        "message": "Login successful", 
-        "user": {"first_name": user.first_name, "email": user.email}
-    }
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return {"message": "Login successful", "user": {"email": user.email, "first_name": user.first_name}}
 
-# --- AI ANALYSIS ENDPOINT ---
+@app.post("/auth/google")
+async def google_auth(data: SocialAuth, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        user = User(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            email=data.email,
+            google_id=data.google_id,
+            password="GOOGLE_SOCIAL_USER" 
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        if not user.google_id:
+            user.google_id = data.google_id
+            db.commit()
+    return {"message": "Login successful", "user": {"email": user.email, "first_name": user.first_name}}
+
+# --- AI ANALYSIS ROUTE ---
+
 @app.post("/analyze")
 async def analyze_image(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
     ts = int(time.time())
-    input_filename = f"input_{ts}.jpg"
-    heatmap_filename = f"heatmap_{ts}.jpg"
-    file_path = os.path.join(UPLOAD_DIR, input_filename)
-    heatmap_path = os.path.join(UPLOAD_DIR, heatmap_filename)
+    file_path = os.path.join(UPLOAD_DIR, f"input_{ts}.jpg")
+    heatmap_path = os.path.join(UPLOAD_DIR, f"heatmap_{ts}.jpg")
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # STRICKLY USE CPU TO FIX YOUR ERROR
-        # We pass device='cpu' explicitly
         results = model.predict(source=file_path, device='cpu', conf=0.25)
+        label = results[0].names[int(results[0].boxes.cls[0])] if results[0].boxes else "Nothing detected"
+        class_id = int(results[0].boxes.cls[0]) if results[0].boxes else None
         
-        if len(results[0].boxes) > 0:
-            class_id = int(results[0].boxes.cls[0])
-            label = results[0].names[class_id]
-        else:
-            class_id = None
-            label = "Nothing detected"
-
-        # Generate XAI Heatmap
         generate_gradcam(model, file_path, class_id=class_id, save_path=heatmap_path)
-        
-        # Get LLM Advice (Make sure you updated your key in ai_advisor.py!)
         advice = get_contextual_advice(label)
 
-        # Save record to database
-        new_record = DetectionHistory(object_name=label, advice=advice, image_path=file_path)
-        db.add(new_record)
+        db.add(DetectionHistory(object_name=label, advice=advice, image_path=file_path))
         db.commit()
 
         base_url = str(request.base_url).rstrip('/')
         return {
             "detected": label,
             "advice": advice,
-            "heatmap_url": f"{base_url}/static_uploads/{heatmap_filename}",
-            "original_url": f"{base_url}/static_uploads/{input_filename}"
+            "heatmap_url": f"{base_url}/static_uploads/heatmap_{ts}.jpg",
+            "original_url": f"{base_url}/static_uploads/input_{ts}.jpg"
         }
     except Exception as e:
-        print(f"Analysis Error: {e}")
-        # Return a clearer error message to the frontend
-        raise HTTPException(status_code=500, detail=f"AI Engine Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/history")
 def get_history(db: Session = Depends(get_db)):
     return db.query(DetectionHistory).order_by(DetectionHistory.id.desc()).all()
+
+# --- SERVE FRONTEND ---
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_dist = os.path.join(BASE_DIR, "frontend", "dist")
+if os.path.exists(os.path.join(frontend_dist, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+
+@app.get("/{catchall:path}")
+async def serve_react(catchall: str):
+    index_path = os.path.join(frontend_dist, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"error": "Frontend build not found. Run 'npm run build'"}
