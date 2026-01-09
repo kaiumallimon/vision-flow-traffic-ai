@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from email_validator import validate_email, EmailNotValidError
 from ultralytics import YOLO
 from prisma import Prisma
@@ -35,13 +35,18 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def get_tokens_for_user(user_id, email):
     """Generate JWT tokens"""
+
+    access['user_id'] = str(user_id)
+    access['email'] = email
+
+    # Create refresh token
     refresh = RefreshToken()
-    refresh['user_id'] = user_id
+    refresh['user_id'] = str(user_id)
     refresh['email'] = email
 
     return {
         'refresh': str(refresh),
-        'access': str(refresh.access_token),
+        'access': str(access),
     }
 
 
