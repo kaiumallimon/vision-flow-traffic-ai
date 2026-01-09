@@ -38,4 +38,14 @@ cd "E:\VS Code\Projects\Thesis\SW000"
 .\venv\Scripts\Activate.ps1
 
 
-git add .
+# 1. Remove the already-tracked images from GitHub's memory
+git rm -r --cached backend/uploads/
+
+# 2. Add the corrected .gitignore
+git add .gitignore
+
+# 3. Commit the changes
+git commit -m "Build: Fix .gitignore encoding and remove uploads from repository"
+
+# 4. Push to GitHub
+git push origin main
