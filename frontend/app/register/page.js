@@ -1,32 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/lib/hooks';
-import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
-  const { login, loading, error: authError } = useAuth();
+  const { register, loading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
-
-  useEffect(() => {
-    // Check if already logged in
-    const user = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    if (user) {
-      router.push('/dashboard');
-    }
-  }, [router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,7 +32,17 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setSuccess(false);
 
+    // Validation
+    if (!formData.firstName.trim()) {
+      setError('First name is required');
+      return;
+    }
+    if (!formData.lastName.trim()) {
+      setError('Last name is required');
+      return;
+    }
     if (!formData.email.trim()) {
       setError('Email is required');
       return;
@@ -45,12 +51,23 @@ export default function LoginPage() {
       setError('Password is required');
       return;
     }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
 
     try {
-      await login(formData.email, formData.password);
-      router.push('/dashboard');
+      await register(formData.firstName, formData.lastName, formData.email, formData.password);
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/login');
+      }, 2000);
     } catch (err) {
-      setError(authError || 'Login failed. Please check your credentials.');
+      setError(authError || 'Registration failed. Please try again.');
     }
   }
 
@@ -74,9 +91,9 @@ export default function LoginPage() {
                 />
               </svg>
             </div>
-            <CardTitle className="text-center text-2xl">Sign In</CardTitle>
+            <CardTitle className="text-center text-2xl">Create Account</CardTitle>
             <CardDescription className="text-center">
-              Welcome back to Vision Flow AI
+              Join Vision Flow AI for intelligent traffic detection
             </CardDescription>
           </CardHeader>
 
@@ -88,6 +105,38 @@ export default function LoginPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
+
+              {success && (
+                <Alert className="border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    Registration successful! Redirecting to login...
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">First Name</label>
+                  <Input
+                    name="firstName"
+                    placeholder="John"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Last Name</label>
+                  <Input
+                    name="lastName"
+                    placeholder="Doe"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
 
               <div>
                 <label className="text-sm font-medium text-slate-700 mb-2 block">Email Address</label>
@@ -122,21 +171,33 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">Confirm Password</label>
+                <Input
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              </div>
+
               <Button className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Signing in...
+                    Creating Account...
                   </>
                 ) : (
-                  'Sign In'
+                  'Create Account'
                 )}
               </Button>
 
               <div className="text-center text-sm text-slate-600">
-                Don't have an account?{' '}
-                <Link href="/register" className="font-semibold text-blue-600 hover:underline">
-                  Create one
+                Already have an account?{' '}
+                <Link href="/login" className="font-semibold text-blue-600 hover:underline">
+                  Sign in
                 </Link>
               </div>
             </form>
