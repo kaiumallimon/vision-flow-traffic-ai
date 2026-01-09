@@ -5,7 +5,7 @@ import { UserPlus } from 'lucide-react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from "jwt-decode";
 
-const API_BASE_URL = "https://lilith-transposable-clarence.ngrok-free.dev";
+const API_BASE_URL = window.location.origin + "/api";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ const Register = () => {
     e.preventDefault();
     try {
       const res = await axios.post(`${API_BASE_URL}/register`, formData);
-      if (res.data.message === "Success") {
+      if (res.data.message === "Registration successful") {
         alert("Registration Successful! Please login.");
         navigate('/login');
       }
@@ -40,6 +40,7 @@ const Register = () => {
         google_id: details.sub
       });
       localStorage.setItem('user', JSON.stringify(res.data.user));
+      localStorage.setItem('token', res.data.tokens.access);
       navigate('/dashboard');
     } catch (err) {
       alert("Social Registration Failed");
@@ -49,7 +50,7 @@ const Register = () => {
   return (
     <GoogleOAuthProvider clientId="53161265178-lm326anrb5k8hmp3ql2i5ls6kkfuti8l.apps.googleusercontent.com">
       <div className="flex min-h-screen bg-slate-50 font-sans">
-        
+
         {/* LEFT BLUE SIDEBAR */}
         <div className="hidden lg:flex w-1/2 bg-blue-700 text-white flex-col justify-center items-center p-12">
           <div className="text-center">
@@ -63,46 +64,46 @@ const Register = () => {
         <div className="w-full lg:w-1/2 flex justify-center items-center p-8">
           <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10 border border-slate-100">
             <h2 className="text-3xl font-black text-slate-900 mb-8 text-center uppercase tracking-tight">Create Account</h2>
-            
+
             <form className="space-y-4" onSubmit={handleRegister}>
               <div className="flex gap-4">
-                <input 
-                  type="text" 
-                  placeholder="First" 
-                  required 
+                <input
+                  type="text"
+                  placeholder="First"
+                  required
                   className="w-1/2 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   onChange={(e) => setFormData({...formData, first_name: e.target.value})}
                 />
-                <input 
-                  type="text" 
-                  placeholder="Last" 
-                  required 
+                <input
+                  type="text"
+                  placeholder="Last"
+                  required
                   className="w-1/2 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   onChange={(e) => setFormData({...formData, last_name: e.target.value})}
                 />
               </div>
-              
+
               {/* UPDATED EMAIL INPUT WITH VALIDATION */}
-              <input 
-                type="email" 
-                placeholder="Real Email Address" 
-                required 
+              <input
+                type="email"
+                placeholder="Real Email Address"
+                required
                 pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$"
                 title="Please enter a valid email address"
                 className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
               />
-              
-              <input 
-                type="password" 
-                placeholder="Password" 
-                required 
+
+              <input
+                type="password"
+                placeholder="Password"
+                required
                 minLength="6"
                 className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase hover:bg-black transition-all shadow-lg"
               >
                 Register Account
@@ -115,9 +116,9 @@ const Register = () => {
             </div>
 
             <div className="flex justify-center">
-              <GoogleLogin 
-                onSuccess={handleGoogleSuccess} 
-                onError={() => alert("Registration Failed")} 
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => alert("Registration Failed")}
                 theme="outline"
                 shape="pill"
                 text="signup_with"

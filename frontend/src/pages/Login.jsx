@@ -5,7 +5,7 @@ import { ShieldCheck } from 'lucide-react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from "jwt-decode";
 
-const API_BASE_URL = "https://lilith-transposable-clarence.ngrok-free.dev";
+const API_BASE_URL = window.location.origin + "/api";
 
 const Login = () => {
     const navigate = useNavigate();
@@ -15,6 +15,7 @@ const Login = () => {
         try {
             const res = await axios.post(`${API_BASE_URL}/login`, { email: e.target[0].value, password: e.target[1].value });
             localStorage.setItem('user', JSON.stringify(res.data.user));
+            localStorage.setItem('token', res.data.tokens.access);
             navigate('/dashboard');
         } catch (err) { alert("Invalid login!"); }
     };
@@ -25,6 +26,7 @@ const Login = () => {
             email: details.email, first_name: details.given_name, last_name: details.family_name, google_id: details.sub
         });
         localStorage.setItem('user', JSON.stringify(res.data.user));
+        localStorage.setItem('token', res.data.tokens.access);
         navigate('/dashboard');
     };
 
