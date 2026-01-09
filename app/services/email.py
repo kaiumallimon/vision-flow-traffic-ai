@@ -162,6 +162,8 @@ async def send_detection_email(user_email: str, user_name: str, detected_object:
         AI Insights:
         {advice}
 
+        {f'View Images: http://localhost:8000{original_url} (Original) | http://localhost:8000{heatmap_url} (Heatmap)' if original_url and heatmap_url else ''}
+
         View your full analysis at: http://localhost:3000/dashboard/history
 
         ---
