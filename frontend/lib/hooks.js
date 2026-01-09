@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 
 // Auth Hooks (simple version - context handles the actual state)
 export const useAuthActions = () => {
@@ -16,10 +17,20 @@ export const useAuthActions = () => {
         email,
         password,
       });
+      toast.success('Registration successful! Please login.');
       return response.data;
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Registration failed';
+      let errorMsg = 'Registration failed';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg).join(', ');
+        }
+      }
       setError(errorMsg);
+      toast.error(errorMsg);
       throw err;
     } finally {
       setLoading(false);
@@ -31,10 +42,20 @@ export const useAuthActions = () => {
     setError('');
     try {
       const response = await api.post('/login', { email, password });
+      toast.success('Login successful!');
       return response.data;
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Login failed';
+      let errorMsg = 'Login failed';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg).join(', ');
+        }
+      }
       setError(errorMsg);
+      toast.error(errorMsg);
       throw err;
     } finally {
       setLoading(false);
@@ -62,10 +83,20 @@ export const useDetection = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
+      toast.success('Image analyzed successfully!');
       return response.data;
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Image analysis failed';
+      let errorMsg = 'Image analysis failed';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg).join(', ');
+        }
+      }
       setError(errorMsg);
+      toast.error(errorMsg);
       throw err;
     } finally {
       setLoading(false);
@@ -79,6 +110,7 @@ export const useDetection = () => {
 export const useHistory = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [items, setItems] = useState([]);
 
   const getHistory = useCallback(async (email, search = '', dateFrom = '', dateTo = '') => {
     setLoading(true);
@@ -90,10 +122,21 @@ export const useHistory = () => {
       if (dateTo) params.date_to = dateTo;
 
       const response = await api.get('/history', { params });
+      setItems(response.data);
       return response.data;
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Failed to fetch history';
+      let errorMsg = 'Failed to fetch history';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg).join(', ');
+        }
+      }
       setError(errorMsg);
+      toast.error(errorMsg);
+      setItems([]);
       throw err;
     } finally {
       setLoading(false);
@@ -105,17 +148,27 @@ export const useHistory = () => {
     setError('');
     try {
       const response = await api.delete(`/history/${itemId}`);
+      toast.success('Detection deleted successfully');
       return response.data;
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Failed to delete item';
+      let errorMsg = 'Failed to delete item';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg).join(', ');
+        }
+      }
       setError(errorMsg);
+      toast.error(errorMsg);
       throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  return { getHistory, deleteItem, loading, error };
+  return { getHistory, deleteItem, items, loading, error };
 };
 
 // Profile Hooks
@@ -130,28 +183,42 @@ export const useProfile = () => {
       const response = await api.get('/profile', { params: { email } });
       return response.data;
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Failed to fetch profile';
+      let errorMsg = 'Failed to fetch profile';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg).join(', ');
+        }
+      }
       setError(errorMsg);
+      toast.error(errorMsg);
       throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const updateProfile = useCallback(async (email, firstName, lastName, password) => {
+  const updateProfile = useCallback(async (data) => {
     setLoading(true);
     setError('');
     try {
-      const data = { email };
-      if (firstName) data.first_name = firstName;
-      if (lastName) data.last_name = lastName;
-      if (password) data.password = password;
-
       const response = await api.put('/profile/update', data);
+      toast.success('Profile updated successfully!');
       return response.data;
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Failed to update profile';
+      let errorMsg = 'Failed to update profile';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg).join(', ');
+        }
+      }
       setError(errorMsg);
+      toast.error(errorMsg);
       throw err;
     } finally {
       setLoading(false);
@@ -165,21 +232,41 @@ export const useProfile = () => {
 export const useStats = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [stats, setStats] = useState(null);
 
   const getStats = useCallback(async (email) => {
+    if (!email) {
+      setError('Email is required');
+      return null;
+    }
+
     setLoading(true);
     setError('');
     try {
       const response = await api.get('/stats', { params: { email } });
+      setStats(response.data);
       return response.data;
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Failed to fetch stats';
+      let errorMsg = 'Failed to fetch stats';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg).join(', ');
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
       setError(errorMsg);
-      throw err;
+      toast.error(errorMsg);
+      console.error('Stats fetch error:', err);
+      setStats(null);
+      return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  return { getStats, loading, error };
+  return { getStats, stats, loading, error };
 };

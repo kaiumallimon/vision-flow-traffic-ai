@@ -123,17 +123,17 @@ export default function ImageUploadComponent({ email, onSuccess }) {
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">Original Image</p>
                 <img
-                  src={result.original_url}
+                  src={`http://localhost:8000${result.original_url}`}
                   alt="Original"
-                  className="w-full h-48 object-cover rounded-lg border border-slate-200"
+                  className="w-full h-auto rounded-lg border border-slate-200"
                 />
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">Heatmap</p>
                 <img
-                  src={result.heatmap_url}
+                  src={`http://localhost:8000${result.heatmap_url}`}
                   alt="Heatmap"
-                  className="w-full h-48 object-cover rounded-lg border border-slate-200"
+                  className="w-full h-auto rounded-lg border border-slate-200"
                 />
               </div>
             </div>

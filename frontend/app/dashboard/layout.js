@@ -1,64 +1,189 @@
-'use client';
+'use client'
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import Sidebar from '@/components/Sidebar';
-import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
+import { createContext, useContext, useState, useEffect } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import {
+  LayoutDashboard,
+  ImageIcon,
+  History,
+  User as UserIcon,
+  LogOut,
+  Menu,
+  Camera,
+  BarChart3,
+  Download
+} from 'lucide-react'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/lib/auth-context'
+
+const MobileMenuContext = createContext(null)
+export const useMobileMenu = () => useContext(MobileMenuContext)
 
 export default function DashboardLayout({ children }) {
-  const router = useRouter();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { isAuthenticated, isLoading } = useAuth();
+  const pathname = usePathname()
+  const router = useRouter()
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
+      router.replace('/login')
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router])
+
+  const handleSignOut = () => {
+    logout()
+    router.push('/login')
+  }
+
+  const isActive = (path) => pathname === path
+
+  const NavItem = ({ href, icon: Icon, label, onClick }) => (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`flex items-center gap-3 rounded-md p-2 text-sm transition-all hover:bg-primary/10 ${
+        isActive(href) ? 'bg-primary text-primary-foreground font-semibold' : ''
+      }`}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="truncate">{label}</span>
+    </Link>
+  )
+
+  const SidebarContent = ({ onLinkClick }) => (
+    <div className="flex h-full w-full flex-col overflow-hidden bg-card">
+      {/* Header */}
+      <div className="border-b p-4">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Camera className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Traffic AI</p>
+            <p className="text-xs text-muted-foreground">Dashboard</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-4">
+        <div>
+          <p className="px-2 mb-2 text-xs uppercase text-muted-foreground">
+            Overview
+          </p>
+          <NavItem
+            href="/dashboard"
+            icon={LayoutDashboard}
+            label="Dashboard"
+            onClick={onLinkClick}
+          />
+        </div>
+
+        <div>
+          <p className="px-2 mb-2 text-xs uppercase text-muted-foreground">
+            Analysis
+          </p>
+          <div className="space-y-1">
+            <NavItem
+              href="/dashboard/analyze"
+              icon={ImageIcon}
+              label="Analyze Image"
+              onClick={onLinkClick}
+            />
+            <NavItem
+              href="/dashboard/analytics"
+              icon={BarChart3}
+              label="Analytics"
+              onClick={onLinkClick}
+            />
+            <NavItem
+              href="/dashboard/history"
+              icon={History}
+              label="History"
+              onClick={onLinkClick}
+            />
+            <NavItem
+              href="/dashboard/export"
+              icon={Download}
+              label="Export Data"
+              onClick={onLinkClick}
+            />
+          </div>
+        </div>
+
+        <div>
+          <p className="px-2 mb-2 text-xs uppercase text-muted-foreground">
+            Account
+          </p>
+          <NavItem
+            href="/dashboard/profile"
+            icon={UserIcon}
+            label="Profile Settings"
+            onClick={onLinkClick}
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="border-t p-4">
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 rounded-md p-3 text-sm text-destructive hover:bg-destructive/10"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </button>
+      </div>
+    </div>
+  )
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-lg bg-blue-500 flex items-center justify-center mx-auto mb-4 animate-spin">
-            <div className="w-8 h-8 rounded-lg bg-slate-50"></div>
-          </div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Camera className="h-8 w-8 animate-spin text-primary" />
       </div>
-    );
+    )
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+    <MobileMenuContext.Provider value={() => setMobileMenuOpen(true)}>
+      <div className="flex h-screen overflow-hidden bg-background">
+        {/* Desktop Sidebar */}
+        <aside className="hidden md:flex w-52 border-r">
+          <SidebarContent />
+        </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        {/* Mobile Header */}
-        <div className="lg:hidden sticky top-0 bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4 z-30">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
-          <h1 className="font-bold text-lg">Vision Flow AI</h1>
-        </div>
+        {/* Mobile Sidebar */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="p-0 w-52">
+            <SheetTitle className="sr-only">Menu</SheetTitle>
+            <SidebarContent onLinkClick={() => setMobileMenuOpen(false)} />
+          </SheetContent>
+        </Sheet>
 
-        {/* Page Content */}
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
-          {children}
+        {/* Main */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <header className="md:hidden border-b p-4 flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <span className="font-semibold text-sm">Traffic AI</span>
+          </header>
+
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+            {children}
+          </main>
         </div>
-      </main>
-    </div>
-  );
+      </div>
+    </MobileMenuContext.Provider>
+  )
 }
