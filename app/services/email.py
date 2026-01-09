@@ -110,7 +110,7 @@ async def send_detection_email(user_email: str, user_name: str, detected_object:
                             {detected_object}
                         </p>
                     </div>
-                    
+
                     {f'''
                     <div class="image-box">
                         <h3 style="margin-top: 0; color: #475569;">📸 Analyzed Images</h3>
