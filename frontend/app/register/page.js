@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAuth } from '@/lib/hooks';
+import { useAuthActions } from '@/lib/hooks';
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, loading, error: authError } = useAuth();
+  const { register, loading, error: authError } = useAuthActions();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);

@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAuth } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth-context';
+import { useAuthActions } from '@/lib/hooks';
 import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loading, error: authError } = useAuth();
+  const { isAuthenticated, login: setAuthLogin } = useAuth();
+  const { loginRequest, loading, error: authError } = useAuthActions();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -21,12 +23,11 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // Check if already logged in
-    const user = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    if (user) {
-      router.push('/dashboard');
+    // Redirect if already authenticated
+    if (isAuthenticated) {
+      router.replace('/dashboard');
     }
-  }, [router]);
+  }, [isAuthenticated, router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,8 +48,14 @@ export default function LoginPage() {
     }
 
     try {
-      await login(formData.email, formData.password);
-      router.push('/dashboard');
+      const response = await loginRequest(formData.email, formData.password);
+      const { tokens, user } = response;
+
+      // Save to context and localStorage
+      setAuthLogin(tokens.access, user);
+
+      // Navigate to dashboard
+      router.replace('/dashboard');
     } catch (err) {
       setError(authError || 'Login failed. Please check your credentials.');
     }

@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import api from '@/lib/api';
 
-// Auth Hooks
-export const useAuth = () => {
+// Auth Hooks (simple version - context handles the actual state)
+export const useAuthActions = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,14 +26,11 @@ export const useAuth = () => {
     }
   }, []);
 
-  const login = useCallback(async (email, password) => {
+  const loginRequest = useCallback(async (email, password) => {
     setLoading(true);
     setError('');
     try {
       const response = await api.post('/login', { email, password });
-      const { tokens, user } = response.data;
-      localStorage.setItem('token', tokens.access);
-      localStorage.setItem('user', JSON.stringify(user));
       return response.data;
     } catch (err) {
       const errorMsg = err.response?.data?.detail || 'Login failed';
@@ -44,12 +41,7 @@ export const useAuth = () => {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  }, []);
-
-  return { register, login, logout, loading, error };
+  return { register, loginRequest, loading, error };
 };
 
 // Detection Hooks

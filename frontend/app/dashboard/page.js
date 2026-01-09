@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStats } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth-context';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Activity, ImageIcon, TrendingUp, Zap } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,18 +11,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
 
 export default function DashboardPage() {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const { getStats, loading } = useStats();
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      fetchStats(parsedUser.email);
+    if (user?.email) {
+      fetchStats(user.email);
     }
-  }, []);
+  }, [user]);
 
   const fetchStats = async (email) => {
     try {

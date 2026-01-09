@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth-context';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,18 +24,10 @@ import {
 
 export default function Sidebar({ isOpen, onClose }) {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, []);
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     router.push('/login');
   };
 

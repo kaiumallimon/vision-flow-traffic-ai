@@ -1,4 +1,5 @@
 import './globals.css';
+import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata = {
   title: 'Vision Flow AI - Traffic Detection',
@@ -11,7 +12,9 @@ export default function RootLayout({ children }) {
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className="bg-slate-50">{children}</body>
+      <body className="bg-slate-50">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
