@@ -2,12 +2,12 @@
 venv/
 __pycache__/
 *.pyc
-.env
+*.env
 test.db
 *.db
 
 # Node/React
-node_modules/
+*/node_modules/
 frontend/dist/
 dist/
 .eslintcache
@@ -24,3 +24,11 @@ yolo11n_openvino_model/
 # System
 .DS_Store
 Thumbs.db
+
+/venv/
+/frontend/node_modules/
+/node_modules/
+.next/
+.env.local
+.env.development.local
+.env.example

@@ -230,7 +230,8 @@ export default function HomePage() {
             <Link href="/register">
               <Button
                 size="lg"
-                className="bg-white text-blue-600 hover:bg-slate-100"
+                variant="default"
+                className="bg-white text-foreground hover:bg-slate-100"
               >
                 Start Free Today
                 <ArrowRight className="w-5 h-5 ml-2" />
