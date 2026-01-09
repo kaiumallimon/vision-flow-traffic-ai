@@ -44,7 +44,10 @@ async def register(user_data: UserRegister):
         password=user_data.password
     )
 
-    return MessageResponse(message="Registration successful")@router.post("/login", response_model=AuthResponse)
+    return MessageResponse(message="Registration successful")
+
+
+@router.post("/login", response_model=AuthResponse)
 async def login(credentials: UserLogin):
     """User login endpoint"""
     # Authenticate user
@@ -71,7 +74,10 @@ async def login(credentials: UserLogin):
             first_name=user.firstName,
             last_name=user.lastName
         )
-    )@router.post("/auth/google", response_model=AuthResponse)
+    )
+
+
+@router.post("/auth/google", response_model=AuthResponse)
 async def google_auth(google_data: GoogleAuth):
     """Google OAuth endpoint"""
     # Get or create user

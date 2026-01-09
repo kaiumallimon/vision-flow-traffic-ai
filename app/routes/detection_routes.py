@@ -13,6 +13,7 @@ from app.models import DetectionResponse, HistoryItem, MessageResponse
 from app.database import db_service
 from app.utils import generate_gradcam, get_contextual_advice
 from app.config import settings
+from app.services.email import send_detection_email
 
 router = APIRouter()
 
@@ -78,7 +79,14 @@ async def analyze_image(
             user_id=user.id
         )
 
-        # TODO: Send email notification (implement if needed)
+        # Send email notification
+        user_name = f"{user.firstName} {user.lastName}".strip() or "User"
+        await send_detection_email(
+            user_email=email,
+            user_name=user_name,
+            detected_object=label,
+            advice=advice
+        )
 
         return DetectionResponse(
             id=detection.id,

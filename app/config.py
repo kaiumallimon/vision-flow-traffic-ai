@@ -23,8 +23,8 @@ class Settings:
     # Email Configuration
     EMAIL_HOST: str = os.getenv("EMAIL_HOST", "smtp.gmail.com")
     EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 587))
-    EMAIL_USERNAME: str = os.getenv("EMAIL_USERNAME", "")
-    EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")
+    EMAIL_USERNAME: str = os.getenv("EMAIL_HOST_USER", os.getenv("EMAIL_USERNAME", ""))
+    EMAIL_PASSWORD: str = os.getenv("EMAIL_HOST_PASSWORD", os.getenv("EMAIL_PASSWORD", ""))
     DEFAULT_FROM_EMAIL: str = os.getenv("DEFAULT_FROM_EMAIL", "noreply@visionflow.ai")
 
     # OpenRouter API

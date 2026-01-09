@@ -19,7 +19,8 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    // Use window.location for a full page reload to clear any cached state
+    window.location.href = '/login';
   };
 
   const SidebarContent = ({ onLinkClick }) => (

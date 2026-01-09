@@ -93,12 +93,7 @@ export default function DashboardLayout({ children }) {
               label="Analyze Image"
               onClick={onLinkClick}
             />
-            <NavItem
-              href="/dashboard/analytics"
-              icon={BarChart3}
-              label="Analytics"
-              onClick={onLinkClick}
-            />
+            
             <NavItem
               href="/dashboard/history"
               icon={History}
