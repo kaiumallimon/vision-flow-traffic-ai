@@ -236,25 +236,30 @@ docker-compose logs backend
 Create a `.env` file in the project root directory with the following variables:
 
 ```env
-# Database
-DATABASE_URL="file:./db.sqlite3"
+# Postgres (Docker)
+POSTGRES_USER=visionflow
+POSTGRES_PASSWORD=visionflow
+POSTGRES_DB=visionflow
+
+# Prisma connection string (Docker network)
+DATABASE_URL=postgresql://visionflow:visionflow@postgres:5432/visionflow
 
 # JWT Configuration
-SECRET_KEY="your-secret-key-here-change-in-production"
+SECRET_KEY=your-secret-key-here-change-in-production
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # Email Configuration (Optional)
-SMTP_SERVER="smtp.gmail.com"
+SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
-SENDER_EMAIL="your-email@gmail.com"
-SENDER_PASSWORD="your-app-password"
+SENDER_EMAIL=your-email@gmail.com
+SENDER_PASSWORD=your-app-password
 
 # API Configuration
-FRONTEND_URL="http://localhost:3000"
-API_URL="http://localhost:8000"
+FRONTEND_URL=http://localhost:3000
+API_URL=http://localhost:8000
 
 # YOLO Model Path
-YOLO_MODEL_PATH="/app/yolo11n_openvino_model/yolo11n.xml"
+YOLO_MODEL_PATH=/app/yolo11n_openvino_model/yolo11n.xml
 ```
 
 **Note**: For Gmail SMTP, use an [App Password](https://support.google.com/accounts/answer/185833) instead of your regular password.
@@ -266,7 +271,7 @@ YOLO_MODEL_PATH="/app/yolo11n_openvino_model/yolo11n.xml"
 ### Backend Service
 - **Framework**: FastAPI
 - **Port**: 8000
-- **Database**: SQLite with Prisma ORM
+- **Database**: PostgreSQL (Docker) with Prisma ORM
 - **Key Features**:
   - JWT Authentication
   - YOLO11n Object Detection
@@ -484,7 +489,7 @@ After running the containers, verify:
 - [ ] Backend API is accessible at http://localhost:8000
 - [ ] API docs visible at http://localhost:8000/docs
 - [ ] No error messages in logs: `docker-compose logs`
-- [ ] Database file created: `db.sqlite3` exists
+- [ ] Postgres container is healthy: `docker-compose ps` shows postgres running
 - [ ] Media upload directory accessible: `media/uploads/`
 
 ---

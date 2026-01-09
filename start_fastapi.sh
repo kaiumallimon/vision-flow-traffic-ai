@@ -20,6 +20,10 @@ fi
 echo "🔧 Generating Prisma client..."
 prisma generate
 
+# Apply schema to database
+echo "🗄️ Applying Prisma schema to database..."
+prisma db push
+
 # Start FastAPI server
 echo "✅ Starting server on http://localhost:8000"
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
