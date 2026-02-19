@@ -34,12 +34,4 @@ class Settings:
     YOLO_MODEL_PATH: str = "yolo11n_openvino_model/"
     CONFIDENCE_THRESHOLD: float = 0.25
 
-    # Admin configuration
-    ADMIN_EMAILS: list[str] = [
-        email.strip().lower()
-        for email in os.getenv("ADMIN_EMAILS", "").split(",")
-        if email.strip()
-    ]
-
-
 settings = Settings()

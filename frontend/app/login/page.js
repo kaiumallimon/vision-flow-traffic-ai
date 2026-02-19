@@ -13,7 +13,7 @@ import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { isAuthenticated, login: setAuthLogin } = useAuth();
+  const { isAuthenticated, user, login: setAuthLogin } = useAuth();
   const { loginRequest, loading, error: authError } = useAuthActions();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -25,9 +25,9 @@ export default function LoginPage() {
   useEffect(() => {
     // Redirect if already authenticated
     if (isAuthenticated) {
-      router.replace('/dashboard');
+      router.replace(user?.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -54,8 +54,8 @@ export default function LoginPage() {
       // Save to context and localStorage
       setAuthLogin(tokens.access, user);
 
-      // Navigate to dashboard
-      router.replace('/dashboard');
+      // Role-based navigation
+      router.replace(user?.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard');
     } catch (err) {
       setError(authError || 'Login failed. Please check your credentials.');
     }

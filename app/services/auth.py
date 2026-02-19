@@ -41,11 +41,12 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) 
     return encoded_jwt
 
 
-def create_tokens(user_id: int, email: str) -> dict:
-    """Create both access and refresh tokens"""
+def create_tokens(user_id: int, email: str, role: str = "USER") -> dict:
+    """Create both access and refresh tokens, embedding role in the payload"""
     token_data = {
         "user_id": str(user_id),
-        "email": email
+        "email": email,
+        "role": role,
     }
 
     access_token = create_access_token(token_data)
@@ -53,7 +54,7 @@ def create_tokens(user_id: int, email: str) -> dict:
 
     return {
         "access": access_token,
-        "refresh": refresh_token
+        "refresh": refresh_token,
     }
 
 
@@ -63,23 +64,38 @@ def verify_token(token: str) -> TokenData:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("user_id")
         email: str = payload.get("email")
+        role: str = payload.get("role", "USER")
 
         if user_id is None or email is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials"
+                detail="Invalid authentication credentials",
             )
 
-        return TokenData(user_id=user_id, email=email)
+        return TokenData(user_id=user_id, email=email, role=role)
 
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials"
+            detail="Invalid authentication credentials",
         )
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> TokenData:
     """Dependency to get current authenticated user"""
     token = credentials.credentials
     return verify_token(token)
+
+
+async def require_admin(
+    current_user: TokenData = Depends(get_current_user),
+) -> TokenData:
+    """Dependency that enforces admin-only access"""
+    if current_user.role != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current_user

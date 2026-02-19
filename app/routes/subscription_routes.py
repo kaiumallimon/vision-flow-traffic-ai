@@ -13,9 +13,12 @@ from app.models import (
     OrderStatus,
     PaymentOrderCreate,
     PaymentOrderResponse,
+    PlanInfo,
+    PlansResponse,
     SubscriptionStatusResponse,
+    PLAN_CONFIG,
 )
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, require_admin
 from app.models import TokenData
 
 router = APIRouter()
@@ -44,19 +47,35 @@ def map_order_response(order) -> PaymentOrderResponse:
     )
 
 
-def ensure_admin(user) -> None:
-    if user.role != 'ADMIN':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Admin access required',
+# ------------------------------------------------------------------ #
+#  Subscription plans                                                  #
+# ------------------------------------------------------------------ #
+
+@router.get("/subscription/plans", response_model=PlansResponse)
+async def get_subscription_plans():
+    """Return all available subscription plans with pricing"""
+    plans = [
+        PlanInfo(
+            name=k,
+            label=v["label"],
+            daily_limit=v["daily_limit"],
+            price_bdt=v["price_bdt"],
+            description=v["description"],
         )
+        for k, v in PLAN_CONFIG.items()
+    ]
+    return PlansResponse(plans=plans)
 
 
-@router.get('/subscription/status', response_model=SubscriptionStatusResponse)
+# ------------------------------------------------------------------ #
+#  User subscription routes                                            #
+# ------------------------------------------------------------------ #
+
+@router.get("/subscription/status", response_model=SubscriptionStatusResponse)
 async def get_subscription_status(current_user: TokenData = Depends(get_current_user)):
     user = await db_service.get_user_by_email(current_user.email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     subscription = await db_service.get_active_subscription(user.id)
     if not subscription:
@@ -66,77 +85,84 @@ async def get_subscription_status(current_user: TokenData = Depends(get_current_
         has_active_subscription=True,
         status=subscription.status,
         plan_name=subscription.planName,
+        daily_limit=subscription.dailyLimit,
+        daily_used=subscription.dailyUsedToday,
         start_at=subscription.startAt.isoformat(),
         end_at=subscription.endAt.isoformat(),
         api_key=subscription.apiKey.key if subscription.apiKey else None,
     )
 
 
-@router.get('/subscription/api-key', response_model=ApiKeyResponse)
+@router.get("/subscription/api-key", response_model=ApiKeyResponse)
 async def get_api_key(current_user: TokenData = Depends(get_current_user)):
     user = await db_service.get_user_by_email(current_user.email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     api_key = await db_service.get_user_api_key(user.id)
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail='No active API key. Complete payment and wait for admin approval.',
+            detail="No active API key. Complete payment and wait for admin approval.",
         )
 
     return ApiKeyResponse(key=api_key.key, expires_at=api_key.expiresAt.isoformat())
 
 
-@router.post('/orders', response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/orders", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def create_payment_order(
     payload: PaymentOrderCreate,
     current_user: TokenData = Depends(get_current_user),
 ):
     user = await db_service.get_user_by_email(current_user.email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Validate plan name
+    if payload.plan_name.lower() not in PLAN_CONFIG:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid plan. Choose from: {', '.join(PLAN_CONFIG.keys())}",
+        )
 
     existing_tx = await db_service.get_order_by_transaction_id(payload.transaction_id)
     if existing_tx:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Transaction ID already submitted',
+            detail="Transaction ID already submitted",
         )
 
     await db_service.create_payment_order(
         user_id=user.id,
-        plan_name=payload.plan_name,
+        plan_name=payload.plan_name.lower(),
         amount_bdt=payload.amount_bdt,
         bkash_number=payload.bkash_number,
         transaction_id=payload.transaction_id,
         user_note=payload.user_note,
     )
 
-    return MessageResponse(message='Payment order submitted. Waiting for admin review.')
+    return MessageResponse(message="Payment order submitted. Waiting for admin review.")
 
 
-@router.get('/orders/me', response_model=List[PaymentOrderResponse])
+@router.get("/orders/me", response_model=List[PaymentOrderResponse])
 async def get_my_orders(current_user: TokenData = Depends(get_current_user)):
     user = await db_service.get_user_by_email(current_user.email)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     orders = await db_service.get_user_orders(user.id)
     return [map_order_response(order) for order in orders]
 
 
-@router.get('/admin/orders', response_model=List[AdminPaymentOrderResponse])
+# ------------------------------------------------------------------ #
+#  Admin order routes                                                  #
+# ------------------------------------------------------------------ #
+
+@router.get("/admin/orders", response_model=List[AdminPaymentOrderResponse])
 async def get_admin_orders(
-    current_user: TokenData = Depends(get_current_user),
-    status_filter: Optional[OrderStatus] = Query(None, alias='status'),
+    current_user: TokenData = Depends(require_admin),
+    status_filter: Optional[OrderStatus] = Query(None, alias="status"),
 ):
-    user = await db_service.get_user_by_email(current_user.email)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
-
-    ensure_admin(user)
-
     orders = await db_service.get_orders(status_filter.value if status_filter else None)
     return [
         AdminPaymentOrderResponse(
@@ -149,35 +175,28 @@ async def get_admin_orders(
     ]
 
 
-@router.patch('/admin/orders/{order_id}/review', response_model=MessageResponse)
+@router.patch("/admin/orders/{order_id}/review", response_model=MessageResponse)
 async def review_order(
     order_id: int,
     payload: AdminOrderReviewRequest,
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_admin),
 ):
-    user = await db_service.get_user_by_email(current_user.email)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
-
-    ensure_admin(user)
-
-    if payload.action == 'approve':
+    if payload.action == "approve":
         result = await db_service.approve_order(
             order_id=order_id,
             admin_note=payload.admin_note,
-            duration_days=payload.duration_days,
         )
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Order not found')
-        if isinstance(result, dict) and result.get('error'):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result['error'])
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        if isinstance(result, dict) and result.get("error"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"])
 
-        return MessageResponse(message='Order approved. Subscription and API key activated.')
+        return MessageResponse(message="Order approved. Subscription and API key activated for 30 days.")
 
     result = await db_service.reject_order(order_id=order_id, admin_note=payload.admin_note)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Order not found')
-    if isinstance(result, dict) and result.get('error'):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result['error'])
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if isinstance(result, dict) and result.get("error"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"])
 
-    return MessageResponse(message='Order rejected.')
+    return MessageResponse(message="Order rejected.")

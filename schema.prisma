@@ -65,19 +65,22 @@ model ApiKey {
 }
 
 model Subscription {
-  id          Int                @id @default(autoincrement())
-  planName    String
-  status      SubscriptionStatus @default(ACTIVE)
-  isActive    Boolean            @default(true)
-  startAt     DateTime
-  endAt       DateTime
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  userId      Int
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  apiKeyId    Int?               @unique
-  apiKey      ApiKey?            @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
-  paymentRefs PaymentOrder[]
+  id             Int                @id @default(autoincrement())
+  planName       String
+  status         SubscriptionStatus @default(ACTIVE)
+  isActive       Boolean            @default(true)
+  dailyLimit     Int                @default(10)
+  dailyUsedToday Int                @default(0)
+  lastUsageDate  DateTime?
+  startAt        DateTime
+  endAt          DateTime
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  userId         Int
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeyId       Int?               @unique
+  apiKey         ApiKey?            @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  paymentRefs    PaymentOrder[]
 
   @@index([userId, isActive])
 }

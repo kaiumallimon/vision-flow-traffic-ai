@@ -79,11 +79,20 @@ async def analyze_image(
                 detail="User not found"
             )
 
-        has_subscription = await db_service.has_active_subscription(user.id)
-        if not has_subscription:
+        # Check and increment daily usage limit
+        limit_check = await db_service.check_and_increment_daily_usage(user.id)
+        if not limit_check["allowed"]:
+            if limit_check["reason"] == "no_subscription":
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="Active subscription required. Please complete payment and wait for admin approval.",
+                )
             raise HTTPException(
-                status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                detail="Active subscription required. Please complete payment and wait for approval."
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    f"Daily analysis limit reached "
+                    f"({limit_check['used']}/{limit_check['limit']}). Resets at midnight UTC."
+                ),
             )
 
         # Save detection

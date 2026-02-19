@@ -381,3 +381,102 @@ export const useAdminOrders = () => {
 
   return { getOrders, reviewOrder, loading, error };
 };
+
+
+// ------------------------------------------------------------------ //
+// Subscription Plans Hook                                             //
+// ------------------------------------------------------------------ //
+export const useSubscriptionPlans = () => {
+  const [loading, setLoading] = useState(false);
+  const [plans, setPlans] = useState([]);
+
+  const getPlans = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/subscription/plans');
+      setPlans(response.data.plans || []);
+      return response.data.plans || [];
+    } catch {
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { getPlans, plans, loading };
+};
+
+
+// ------------------------------------------------------------------ //
+// Admin Stats Hook                                                     //
+// ------------------------------------------------------------------ //
+export const useAdminStats = () => {
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [error, setError] = useState('');
+
+  const getStats = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get('/admin/stats');
+      setStats(response.data);
+      return response.data;
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to fetch admin stats';
+      setError(msg);
+      toast.error(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { getStats, stats, loading, error };
+};
+
+
+// ------------------------------------------------------------------ //
+// Admin Users Hook                                                     //
+// ------------------------------------------------------------------ //
+export const useAdminUsers = () => {
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [error, setError] = useState('');
+
+  const getUsers = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get('/admin/users');
+      setUsers(response.data);
+      return response.data;
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to fetch users';
+      setError(msg);
+      toast.error(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateUserRole = useCallback(async (userId, role) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.patch(`/admin/users/${userId}/role`, { role });
+      toast.success(response.data.message || 'Role updated');
+      return response.data;
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to update role';
+      setError(msg);
+      toast.error(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { getUsers, updateUserRole, users, loading, error };
+};

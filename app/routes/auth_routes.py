@@ -10,13 +10,8 @@ from app.models import (
 )
 from app.database import db_service
 from app.services.auth import create_tokens
-from app.config import settings
 
 router = APIRouter()
-
-
-def resolve_user_role(email: str) -> str:
-    return 'ADMIN' if email.lower() in settings.ADMIN_EMAILS else 'USER'
 
 
 @router.post("/register", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
@@ -47,7 +42,7 @@ async def register(user_data: UserRegister):
         last_name=user_data.last_name,
         email=valid_email,
         password=user_data.password,
-        role=resolve_user_role(valid_email)
+        role='USER'
     )
 
     return MessageResponse(message="Registration successful")
@@ -68,12 +63,8 @@ async def login(credentials: UserLogin):
             detail="Invalid credentials"
         )
 
-    # Generate tokens
-    expected_role = resolve_user_role(user.email)
-    if user.role != expected_role:
-        user = await db_service.update_user_role(user.id, expected_role)
-
-    tokens = create_tokens(user.id, user.email)
+    # Generate tokens using DB role as source of truth
+    tokens = create_tokens(user.id, user.email, role=user.role)
 
     return AuthResponse(
         message="Login successful",
@@ -101,7 +92,7 @@ async def google_auth(google_data: GoogleAuth):
             email=google_data.email,
             password='GOOGLE_SOCIAL_USER',
             google_id=google_data.google_id,
-            role=resolve_user_role(google_data.email)
+            role='USER'
         )
     else:
         if not user.googleId:
@@ -110,12 +101,8 @@ async def google_auth(google_data: GoogleAuth):
                 data={'googleId': google_data.google_id}
             )
 
-        expected_role = resolve_user_role(user.email)
-        if user.role != expected_role:
-            user = await db_service.update_user_role(user.id, expected_role)
-
     # Generate tokens
-    tokens = create_tokens(user.id, user.email)
+    tokens = create_tokens(user.id, user.email, role=user.role)
 
     return AuthResponse(
         message="Login successful",

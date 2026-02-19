@@ -11,10 +11,8 @@ import {
   LogOut,
   Menu,
   Camera,
-  BarChart3,
   Download,
   Lock,
-  ShieldCheck
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -37,6 +35,13 @@ export default function DashboardLayout({ children }) {
       router.replace('/login')
     }
   }, [isAuthenticated, isLoading, router])
+
+  useEffect(() => {
+    // Redirect admin users to their dedicated dashboard
+    if (!isLoading && isAuthenticated && user?.role === 'ADMIN') {
+      router.replace('/admin/dashboard')
+    }
+  }, [isLoading, isAuthenticated, user, router])
 
   const handleSignOut = () => {
     logout()
@@ -151,14 +156,7 @@ export default function DashboardLayout({ children }) {
             label="Profile Settings"
             onClick={onLinkClick}
           />
-          {user?.role === 'ADMIN' ? (
-            <NavItem
-              href="/dashboard/admin"
-              icon={ShieldCheck}
-              label="Admin Orders"
-              onClick={onLinkClick}
-            />
-          ) : null}
+          {user?.role === 'ADMIN' ? null : null}
         </div>
       </div>
 

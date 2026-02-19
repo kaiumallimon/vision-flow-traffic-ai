@@ -24,6 +24,31 @@ class OrderStatus(str, Enum):
     REJECTED = "REJECTED"
 
 
+# Subscription plan configuration
+PLAN_CONFIG = {
+    "basic": {
+        "label": "Basic",
+        "daily_limit": 10,
+        "price_bdt": 200,
+        "description": "10 image analyses per day",
+    },
+    "pro": {
+        "label": "Pro",
+        "daily_limit": 30,
+        "price_bdt": 1000,
+        "description": "30 image analyses per day",
+    },
+    "ultimate": {
+        "label": "Ultimate",
+        "daily_limit": 100,
+        "price_bdt": 8000,
+        "description": "100 image analyses per day",
+    },
+}
+
+PLAN_DAILY_LIMIT = {k: v["daily_limit"] for k, v in PLAN_CONFIG.items()}
+
+
 # Auth Models
 class UserRegister(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100)
@@ -52,6 +77,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     user_id: Optional[str] = None
     email: Optional[str] = None
+    role: Optional[str] = "USER"
 
 
 class UserResponse(BaseModel):
@@ -125,6 +151,8 @@ class SubscriptionStatusResponse(BaseModel):
     has_active_subscription: bool
     status: Optional[SubscriptionStatus] = None
     plan_name: Optional[str] = None
+    daily_limit: Optional[int] = None
+    daily_used: Optional[int] = None
     start_at: Optional[str] = None
     end_at: Optional[str] = None
     api_key: Optional[str] = None
@@ -162,9 +190,47 @@ class AdminPaymentOrderResponse(PaymentOrderResponse):
 class AdminOrderReviewRequest(BaseModel):
     action: str = Field(..., pattern="^(approve|reject)$")
     admin_note: Optional[str] = Field(None, max_length=500)
-    duration_days: int = Field(30, ge=1, le=365)
 
 
 class ApiKeyResponse(BaseModel):
     key: str
     expires_at: str
+
+
+# Admin models
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    total_detections: int
+    total_revenue_bdt: float
+    pending_orders: int
+    active_subscriptions: int
+
+
+class AdminUserResponse(BaseModel):
+    id: int
+    email: str
+    first_name: str
+    last_name: str
+    role: UserRole
+    created_at: str
+    total_detections: int
+    has_active_subscription: bool
+    subscription_plan: Optional[str] = None
+    daily_limit: Optional[int] = None
+    daily_used: Optional[int] = None
+
+
+class UpdateUserRoleRequest(BaseModel):
+    role: UserRole
+
+
+class PlanInfo(BaseModel):
+    name: str
+    label: str
+    daily_limit: int
+    price_bdt: int
+    description: str
+
+
+class PlansResponse(BaseModel):
+    plans: List[PlanInfo]

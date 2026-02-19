@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 import os
 
 from app.database import db_service
-from app.routes import auth_routes, detection_routes, subscription_routes, user_routes
+from app.routes import auth_routes, detection_routes, subscription_routes, user_routes, admin_routes
 
 
 @asynccontextmanager
@@ -53,6 +53,7 @@ app.include_router(auth_routes.router, prefix="/api", tags=["Authentication"])
 app.include_router(detection_routes.router, prefix="/api", tags=["Detection"])
 app.include_router(user_routes.router, prefix="/api", tags=["User"])
 app.include_router(subscription_routes.router, prefix="/api", tags=["Subscription"])
+app.include_router(admin_routes.router, prefix="/api", tags=["Admin"])
 
 
 @app.get("/")
