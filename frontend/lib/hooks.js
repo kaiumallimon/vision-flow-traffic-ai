@@ -270,3 +270,114 @@ export const useStats = () => {
 
   return { getStats, stats, loading, error };
 };
+
+export const useSubscription = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const getSubscriptionStatus = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get('/subscription/status');
+      return response.data;
+    } catch (err) {
+      let errorMsg = 'Failed to fetch subscription status';
+      if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      }
+      setError(errorMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createPaymentOrder = useCallback(async (payload) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.post('/orders', payload);
+      toast.success(response.data.message || 'Payment order submitted');
+      return response.data;
+    } catch (err) {
+      let errorMsg = 'Failed to submit payment order';
+      if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      }
+      setError(errorMsg);
+      toast.error(errorMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getMyOrders = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get('/orders/me');
+      return response.data;
+    } catch (err) {
+      let errorMsg = 'Failed to fetch orders';
+      if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      }
+      setError(errorMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { getSubscriptionStatus, createPaymentOrder, getMyOrders, loading, error };
+};
+
+export const useAdminOrders = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const getOrders = useCallback(async (status = '') => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = {};
+      if (status) params.status = status;
+      const response = await api.get('/admin/orders', { params });
+      return response.data;
+    } catch (err) {
+      let errorMsg = 'Failed to fetch admin orders';
+      if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      }
+      setError(errorMsg);
+      toast.error(errorMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const reviewOrder = useCallback(async (orderId, payload) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.patch(`/admin/orders/${orderId}/review`, payload);
+      toast.success(response.data.message || 'Order reviewed');
+      return response.data;
+    } catch (err) {
+      let errorMsg = 'Failed to review order';
+      if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      }
+      setError(errorMsg);
+      toast.error(errorMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { getOrders, reviewOrder, loading, error };
+};

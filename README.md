@@ -118,6 +118,9 @@ DEFAULT_FROM_EMAIL=your-email@gmail.com
 
 # Optional: JWT Secret Key
 SECRET_KEY=your-secret-key-here-change-in-production
+
+# Comma-separated admin account emails (must match registered users)
+ADMIN_EMAILS=admin@example.com
 ```
 
 **Note:** For Gmail, you need to:
@@ -226,6 +229,9 @@ DEFAULT_FROM_EMAIL=your-email@gmail.com
 
 # Optional: JWT Secret Key
 SECRET_KEY=your-secret-key-here-change-in-production
+
+# Comma-separated admin account emails (must match registered users)
+ADMIN_EMAILS=admin@example.com
 ```
 
 #### 6. Create Startup Scripts (Optional)

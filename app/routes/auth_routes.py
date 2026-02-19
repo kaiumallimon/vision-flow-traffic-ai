@@ -10,8 +10,13 @@ from app.models import (
 )
 from app.database import db_service
 from app.services.auth import create_tokens
+from app.config import settings
 
 router = APIRouter()
+
+
+def resolve_user_role(email: str) -> str:
+    return 'ADMIN' if email.lower() in settings.ADMIN_EMAILS else 'USER'
 
 
 @router.post("/register", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
@@ -41,7 +46,8 @@ async def register(user_data: UserRegister):
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         email=valid_email,
-        password=user_data.password
+        password=user_data.password,
+        role=resolve_user_role(valid_email)
     )
 
     return MessageResponse(message="Registration successful")
@@ -63,6 +69,10 @@ async def login(credentials: UserLogin):
         )
 
     # Generate tokens
+    expected_role = resolve_user_role(user.email)
+    if user.role != expected_role:
+        user = await db_service.update_user_role(user.id, expected_role)
+
     tokens = create_tokens(user.id, user.email)
 
     return AuthResponse(
@@ -72,7 +82,8 @@ async def login(credentials: UserLogin):
             id=user.id,
             email=user.email,
             first_name=user.firstName,
-            last_name=user.lastName
+            last_name=user.lastName,
+            role=user.role
         )
     )
 
@@ -89,7 +100,8 @@ async def google_auth(google_data: GoogleAuth):
             last_name=google_data.last_name,
             email=google_data.email,
             password='GOOGLE_SOCIAL_USER',
-            google_id=google_data.google_id
+            google_id=google_data.google_id,
+            role=resolve_user_role(google_data.email)
         )
     else:
         if not user.googleId:
@@ -97,6 +109,10 @@ async def google_auth(google_data: GoogleAuth):
                 user_id=user.id,
                 data={'googleId': google_data.google_id}
             )
+
+        expected_role = resolve_user_role(user.email)
+        if user.role != expected_role:
+            user = await db_service.update_user_role(user.id, expected_role)
 
     # Generate tokens
     tokens = create_tokens(user.id, user.email)
@@ -108,6 +124,7 @@ async def google_auth(google_data: GoogleAuth):
             id=user.id,
             email=user.email,
             first_name=user.firstName,
-            last_name=user.lastName
+            last_name=user.lastName,
+            role=user.role
         )
     )

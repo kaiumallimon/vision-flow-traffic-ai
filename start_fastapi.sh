@@ -4,6 +4,12 @@
 
 echo "🚀 Starting Vision Flow FastAPI Server..."
 
+# Check if virtual environment exists, if not create it
+if [ ! -d "venv" ]; then
+    echo "📦 Creating virtual environment..."
+    python3 -m venv venv
+fi
+
 # Activate virtual environment if exists
 if [ -d "venv" ]; then
     echo "📦 Activating virtual environment..."

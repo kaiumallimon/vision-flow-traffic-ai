@@ -22,7 +22,7 @@ class Settings:
 
     # Email Configuration
     EMAIL_HOST: str = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-    EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 587))
+    EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 465))
     EMAIL_USERNAME: str = os.getenv("EMAIL_HOST_USER", os.getenv("EMAIL_USERNAME", ""))
     EMAIL_PASSWORD: str = os.getenv("EMAIL_HOST_PASSWORD", os.getenv("EMAIL_PASSWORD", ""))
     DEFAULT_FROM_EMAIL: str = os.getenv("DEFAULT_FROM_EMAIL", "noreply@visionflow.ai")
@@ -33,6 +33,13 @@ class Settings:
     # Model Configuration
     YOLO_MODEL_PATH: str = "yolo11n_openvino_model/"
     CONFIDENCE_THRESHOLD: float = 0.25
+
+    # Admin configuration
+    ADMIN_EMAILS: list[str] = [
+        email.strip().lower()
+        for email in os.getenv("ADMIN_EMAILS", "").split(",")
+        if email.strip()
+    ]
 
 
 settings = Settings()

@@ -1,7 +1,7 @@
 """
 Detection Routes (Controller)
 """
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Query
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Query, Depends
 from typing import Optional, List
 import os
 import time
@@ -14,6 +14,8 @@ from app.database import db_service
 from app.utils import generate_gradcam, get_contextual_advice
 from app.config import settings
 from app.services.email import send_detection_email
+from app.services.auth import get_current_user
+from app.models import TokenData
 
 router = APIRouter()
 
@@ -28,7 +30,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/analyze", response_model=DetectionResponse)
 async def analyze_image(
     file: UploadFile = File(...),
-    email: str = Form(...)
+    email: str = Form(...),
+    current_user: TokenData = Depends(get_current_user)
 ):
     """Image analysis endpoint"""
 
@@ -36,6 +39,12 @@ async def analyze_image(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File and email are required"
+        )
+
+    if email.lower() != (current_user.email or '').lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email does not match authenticated user"
         )
 
     # Save uploaded file
@@ -68,6 +77,13 @@ async def analyze_image(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
+            )
+
+        has_subscription = await db_service.has_active_subscription(user.id)
+        if not has_subscription:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="Active subscription required. Please complete payment and wait for approval."
             )
 
         # Save detection

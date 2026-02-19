@@ -12,11 +12,14 @@ import {
   Menu,
   Camera,
   BarChart3,
-  Download
+  Download,
+  Lock,
+  ShieldCheck
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth-context'
+import { useSubscription } from '@/lib/hooks'
 
 const MobileMenuContext = createContext(null)
 export const useMobileMenu = () => useContext(MobileMenuContext)
@@ -25,7 +28,9 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, isAuthenticated, isLoading, logout } = useAuth()
+  const { getSubscriptionStatus } = useSubscription()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -38,18 +43,44 @@ export default function DashboardLayout({ children }) {
     router.push('/login')
   }
 
+  useEffect(() => {
+    const loadSubscription = async () => {
+      try {
+        const response = await getSubscriptionStatus()
+        setHasActiveSubscription(!!response?.has_active_subscription)
+      } catch {
+        setHasActiveSubscription(false)
+      }
+    }
+
+    if (isAuthenticated) {
+      loadSubscription()
+    }
+  }, [isAuthenticated])
+
   const isActive = (path) => pathname === path
 
-  const NavItem = ({ href, icon: Icon, label, onClick }) => (
+  const NavItem = ({ href, icon: Icon, label, onClick, disabled = false }) => (
     <Link
-      href={href}
-      onClick={onClick}
-      className={`flex items-center gap-3 rounded-md p-2 text-sm transition-all hover:bg-primary/10 ${
+      href={disabled ? '/dashboard/analyze' : href}
+      onClick={(event) => {
+        if (disabled) {
+          event.preventDefault()
+          onClick?.(event)
+          router.push('/dashboard/analyze')
+          return
+        }
+        onClick?.(event)
+      }}
+      className={`flex items-center gap-3 rounded-md p-2 text-sm transition-all ${
+        disabled ? 'opacity-60 hover:bg-muted' : 'hover:bg-primary/10'
+      } ${
         isActive(href) ? 'bg-primary text-primary-foreground font-semibold' : ''
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" />
       <span className="truncate">{label}</span>
+      {disabled ? <Lock className="ml-auto h-3.5 w-3.5" /> : null}
     </Link>
   )
 
@@ -89,11 +120,12 @@ export default function DashboardLayout({ children }) {
           <div className="space-y-1">
             <NavItem
               href="/dashboard/analyze"
-              icon={ImageIcon}
-              label="Analyze Image"
+              icon={hasActiveSubscription ? ImageIcon : Lock}
+              label={hasActiveSubscription ? 'Analyze Image' : 'Analyze Image (Locked)'}
               onClick={onLinkClick}
+              disabled={!hasActiveSubscription}
             />
-            
+
             <NavItem
               href="/dashboard/history"
               icon={History}
@@ -119,6 +151,14 @@ export default function DashboardLayout({ children }) {
             label="Profile Settings"
             onClick={onLinkClick}
           />
+          {user?.role === 'ADMIN' ? (
+            <NavItem
+              href="/dashboard/admin"
+              icon={ShieldCheck}
+              label="Admin Orders"
+              onClick={onLinkClick}
+            />
+          ) : null}
         </div>
       </div>
 

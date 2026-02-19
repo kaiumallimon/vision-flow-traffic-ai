@@ -3,7 +3,8 @@ Database service for Prisma operations
 """
 from prisma import Prisma
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
 
 
 class DatabaseService:
@@ -35,13 +36,15 @@ class DatabaseService:
         return await self.prisma.user.find_unique(where={'id': user_id})
 
     async def create_user(self, first_name: str, last_name: str, email: str,
-                         password: str, google_id: Optional[str] = None):
+                         password: str, google_id: Optional[str] = None,
+                         role: str = 'USER'):
         """Create a new user"""
         data = {
             'firstName': first_name,
             'lastName': last_name,
             'email': email,
-            'password': password
+            'password': password,
+            'role': role
         }
         if google_id:
             data['googleId'] = google_id
@@ -62,6 +65,13 @@ class DatabaseService:
                 'email': email,
                 'password': password
             }
+        )
+
+    async def update_user_role(self, user_id: int, role: str):
+        """Update user role"""
+        return await self.prisma.user.update(
+            where={'id': user_id},
+            data={'role': role}
         )
 
     # Detection operations
@@ -108,6 +118,183 @@ class DatabaseService:
     async def delete_detection(self, detection_id: int):
         """Delete a detection record"""
         return await self.prisma.detection.delete(where={'id': detection_id})
+
+    # Subscription and API key operations
+    async def get_active_subscription(self, user_id: int):
+        """Get active subscription for user"""
+        now = datetime.utcnow()
+        return await self.prisma.subscription.find_first(
+            where={
+                'userId': user_id,
+                'isActive': True,
+                'status': 'ACTIVE',
+                'endAt': {'gt': now}
+            },
+            include={'apiKey': True}
+        )
+
+    async def has_active_subscription(self, user_id: int) -> bool:
+        """Check if user has active subscription"""
+        subscription = await self.get_active_subscription(user_id)
+        return subscription is not None
+
+    async def get_user_api_key(self, user_id: int):
+        """Get active API key for user"""
+        now = datetime.utcnow()
+        return await self.prisma.apiKey.find_first(
+            where={
+                'userId': user_id,
+                'isActive': True,
+                'expiresAt': {'gt': now}
+            },
+            order={'id': 'desc'}
+        )
+
+    async def create_payment_order(
+        self,
+        user_id: int,
+        plan_name: str,
+        amount_bdt: float,
+        bkash_number: str,
+        transaction_id: str,
+        user_note: Optional[str] = None
+    ):
+        """Create a payment order"""
+        return await self.prisma.paymentorder.create(
+            data={
+                'planName': plan_name,
+                'amountBdt': amount_bdt,
+                'currency': 'BDT',
+                'bkashNumber': bkash_number,
+                'transactionId': transaction_id,
+                'status': 'PENDING',
+                'userNote': user_note,
+                'userId': user_id
+            }
+        )
+
+    async def get_order_by_transaction_id(self, transaction_id: str):
+        """Get payment order by transaction ID"""
+        return await self.prisma.paymentorder.find_unique(
+            where={'transactionId': transaction_id}
+        )
+
+    async def get_user_orders(self, user_id: int):
+        """Get orders for a specific user"""
+        return await self.prisma.paymentorder.find_many(
+            where={'userId': user_id},
+            order={'id': 'desc'}
+        )
+
+    async def get_orders(self, status: Optional[str] = None):
+        """Get all payment orders, optionally by status"""
+        where_clause = {'status': status} if status else None
+        return await self.prisma.paymentorder.find_many(
+            where=where_clause,
+            include={'user': True},
+            order={'id': 'desc'}
+        )
+
+    async def get_order_by_id(self, order_id: int):
+        """Get payment order by ID"""
+        return await self.prisma.paymentorder.find_unique(
+            where={'id': order_id},
+            include={'user': True}
+        )
+
+    async def approve_order(
+        self,
+        order_id: int,
+        admin_note: Optional[str],
+        duration_days: int
+    ):
+        """Approve order and activate subscription with API key"""
+        order = await self.get_order_by_id(order_id)
+        if not order:
+            return None
+
+        if order.status != 'PENDING':
+            return {'error': 'Order already reviewed'}
+
+        now = datetime.utcnow()
+        expires_at = now + timedelta(days=duration_days)
+
+        await self.prisma.subscription.update_many(
+            where={
+                'userId': order.userId,
+                'isActive': True
+            },
+            data={
+                'isActive': False,
+                'status': 'EXPIRED'
+            }
+        )
+
+        await self.prisma.apikey.update_many(
+            where={
+                'userId': order.userId,
+                'isActive': True
+            },
+            data={'isActive': False}
+        )
+
+        raw_key = f"vf_{secrets.token_urlsafe(32)}"
+        api_key = await self.prisma.apikey.create(
+            data={
+                'key': raw_key,
+                'isActive': True,
+                'expiresAt': expires_at,
+                'userId': order.userId
+            }
+        )
+
+        subscription = await self.prisma.subscription.create(
+            data={
+                'planName': order.planName,
+                'status': 'ACTIVE',
+                'isActive': True,
+                'startAt': now,
+                'endAt': expires_at,
+                'userId': order.userId,
+                'apiKeyId': api_key.id
+            }
+        )
+
+        updated_order = await self.prisma.paymentorder.update(
+            where={'id': order.id},
+            data={
+                'status': 'APPROVED',
+                'adminNote': admin_note,
+                'reviewedAt': now,
+                'subscriptionId': subscription.id
+            },
+            include={'user': True}
+        )
+
+        return {
+            'order': updated_order,
+            'subscription': subscription,
+            'api_key': api_key
+        }
+
+    async def reject_order(self, order_id: int, admin_note: Optional[str]):
+        """Reject payment order"""
+        order = await self.get_order_by_id(order_id)
+        if not order:
+            return None
+
+        if order.status != 'PENDING':
+            return {'error': 'Order already reviewed'}
+
+        return await self.prisma.paymentorder.update(
+            where={'id': order.id},
+            data={
+                'status': 'REJECTED',
+                'adminNote': admin_note,
+                'reviewedAt': datetime.utcnow()
+            },
+            include={'user': True}
+        )
 
 
 # Singleton instance

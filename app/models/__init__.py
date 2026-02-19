@@ -4,6 +4,24 @@ Pydantic Models/Schemas for Request/Response
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Dict, List
 from datetime import datetime
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    USER = "USER"
+    ADMIN = "ADMIN"
+
+
+class SubscriptionStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+
+
+class OrderStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 # Auth Models
@@ -41,6 +59,7 @@ class UserResponse(BaseModel):
     email: str
     first_name: str
     last_name: str
+    role: UserRole = UserRole.USER
 
 
 class AuthResponse(BaseModel):
@@ -73,6 +92,7 @@ class UserProfile(BaseModel):
     firstName: str
     lastName: str
     email: str
+    role: UserRole = UserRole.USER
     createdAt: str
     totalDetections: int
 
@@ -99,3 +119,52 @@ class MessageResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+
+class SubscriptionStatusResponse(BaseModel):
+    has_active_subscription: bool
+    status: Optional[SubscriptionStatus] = None
+    plan_name: Optional[str] = None
+    start_at: Optional[str] = None
+    end_at: Optional[str] = None
+    api_key: Optional[str] = None
+
+
+class PaymentOrderCreate(BaseModel):
+    plan_name: str = Field(..., min_length=2, max_length=100)
+    amount_bdt: float = Field(..., gt=0)
+    bkash_number: str = Field(..., min_length=8, max_length=20)
+    transaction_id: str = Field(..., min_length=5, max_length=100)
+    user_note: Optional[str] = Field(None, max_length=500)
+
+
+class PaymentOrderResponse(BaseModel):
+    id: int
+    plan_name: str
+    amount_bdt: float
+    currency: str
+    bkash_number: str
+    transaction_id: str
+    status: OrderStatus
+    user_note: Optional[str] = None
+    admin_note: Optional[str] = None
+    reviewed_at: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class AdminPaymentOrderResponse(PaymentOrderResponse):
+    user_id: int
+    user_email: str
+    user_name: str
+
+
+class AdminOrderReviewRequest(BaseModel):
+    action: str = Field(..., pattern="^(approve|reject)$")
+    admin_note: Optional[str] = Field(None, max_length=500)
+    duration_days: int = Field(30, ge=1, le=365)
+
+
+class ApiKeyResponse(BaseModel):
+    key: str
+    expires_at: str

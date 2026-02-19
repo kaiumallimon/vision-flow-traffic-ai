@@ -8,15 +8,36 @@ generator client {
   recursive_type_depth = 5
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id         Int      @id @default(autoincrement())
-  firstName  String
-  lastName   String
-  email      String   @unique
-  password   String?
-  googleId   String?  @unique
-  createdAt  DateTime @default(now())
-  detections Detection[]
+  id            Int           @id @default(autoincrement())
+  firstName     String
+  lastName      String
+  email         String        @unique
+  password      String?
+  googleId      String?       @unique
+  role          UserRole      @default(USER)
+  createdAt     DateTime      @default(now())
+  detections    Detection[]
+  subscriptions Subscription[]
+  apiKeys       ApiKey[]
+  orders        PaymentOrder[]
 }
 
 model Detection {
@@ -28,4 +49,57 @@ model Detection {
   createdAt   DateTime @default(now())
   userId      Int
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ApiKey {
+  id           Int           @id @default(autoincrement())
+  key          String        @unique
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  expiresAt    DateTime
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription?
+
+  @@index([userId])
+}
+
+model Subscription {
+  id          Int                @id @default(autoincrement())
+  planName    String
+  status      SubscriptionStatus @default(ACTIVE)
+  isActive    Boolean            @default(true)
+  startAt     DateTime
+  endAt       DateTime
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  userId      Int
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeyId    Int?               @unique
+  apiKey      ApiKey?            @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  paymentRefs PaymentOrder[]
+
+  @@index([userId, isActive])
+}
+
+model PaymentOrder {
+  id             Int          @id @default(autoincrement())
+  planName       String
+  amountBdt      Float
+  currency       String       @default("BDT")
+  bkashNumber    String
+  transactionId  String       @unique
+  status         OrderStatus  @default(PENDING)
+  userNote       String?
+  adminNote      String?
+  reviewedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  userId         Int
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId Int?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
 }
