@@ -10,13 +10,7 @@ services:
     region: oregon           # choose closest to your users
     plan: free               # free tier (spins down after 15 min inactivity)
 
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r fastapi_requirements.txt
-      prisma generate --schema=schema.prisma
-      prisma py fetch
-      find /opt/render -name "prisma-query-engine-debian-openssl-3.0.x" -exec cp {} /opt/render/project/src/ \;
-      prisma db push --accept-data-loss --schema=schema.prisma
+    buildCommand: chmod +x build.sh && ./build.sh
 
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
