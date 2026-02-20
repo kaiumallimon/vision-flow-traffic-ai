@@ -175,7 +175,7 @@ export default function AnalyzePage() {
             </Card>
           )}
 
-          <ImageUpload email={user?.email} />
+          <ImageUpload email={user?.email} onSuccess={refreshData} />
         </>
       ) : (
         /* No subscription – show plan selection + payment form */
