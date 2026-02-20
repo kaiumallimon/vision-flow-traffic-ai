@@ -1,0 +1,17 @@
+fastapi==0.109.0
+# uvicorn[standard] is NOT used on Windows — it pulls in uvloop which is Unix-only.
+# uvicorn falls back to the default asyncio event loop, which works fine on Windows.
+uvicorn==0.27.0
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+pydantic==2.5.3
+pydantic-settings==2.1.0
+email-validator==2.1.0
+prisma==0.11.0
+python-dotenv==1.0.0
+Pillow==10.2.0
+opencv-python==4.9.0.80
+numpy==1.26.3
+ultralytics==8.1.0
+requests==2.31.0
+openvino>=2024.0.0
