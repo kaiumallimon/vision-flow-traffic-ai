@@ -76,7 +76,7 @@ async def get_stats(email: str = Query(...)):
     total_detections = len(detections)
 
     # Most common objects
-    object_counts = Counter([d.objectName for d in detections])
+    object_counts = Counter([d.objectName for d in detections if d.objectName])
     most_common = dict(object_counts.most_common(5))
 
     # Detections by date (last 30 days for better analytics)
@@ -85,7 +85,7 @@ async def get_stats(email: str = Query(...)):
     for i in range(30):
         date = today - timedelta(days=i)
         date_str = date.strftime('%Y-%m-%d')
-        count = sum(1 for d in detections if d.createdAt.date() == date.date())
+        count = sum(1 for d in detections if d.createdAt and d.createdAt.date() == date.date())
         date_counts[date_str] = count
 
     return StatsResponse(
