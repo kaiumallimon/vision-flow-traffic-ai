@@ -110,12 +110,14 @@ export default function ImageUploadComponent({ email, onSuccess }) {
           </Alert>
         )}
 
-        {success && result && (
+        {success && result && (() => {
+          const item = Array.isArray(result) ? result[0] : result;
+          return (
           <div className="space-y-4">
             <Alert className="border-green-200 bg-green-50">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800">
-                Analysis complete! Object detected: <strong>{result.detected}</strong>
+                Analysis complete! Object detected: <strong>{item.object_name || item.detected}</strong>
               </AlertDescription>
             </Alert>
 
@@ -123,7 +125,7 @@ export default function ImageUploadComponent({ email, onSuccess }) {
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">Original Image</p>
                 <img
-                  src={result.original_url}
+                  src={item.image_path || item.original_url}
                   alt="Original"
                   className="w-full h-auto rounded-lg border border-slate-200"
                 />
@@ -131,7 +133,7 @@ export default function ImageUploadComponent({ email, onSuccess }) {
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">Heatmap</p>
                 <img
-                  src={result.heatmap_url}
+                  src={item.heatmap_path || item.heatmap_url}
                   alt="Heatmap"
                   className="w-full h-auto rounded-lg border border-slate-200"
                 />
@@ -140,7 +142,7 @@ export default function ImageUploadComponent({ email, onSuccess }) {
 
             <div className="bg-slate-50 rounded-lg p-4">
               <p className="text-sm font-medium text-slate-700 mb-2">AI Recommendation</p>
-              <p className="text-slate-600">{result.advice}</p>
+              <p className="text-slate-600">{item.advice}</p>
             </div>
 
             <Button
@@ -154,7 +156,8 @@ export default function ImageUploadComponent({ email, onSuccess }) {
               Analyze Another Image
             </Button>
           </div>
-        )}
+          );
+        })()}
 
         {!success && (
           <>

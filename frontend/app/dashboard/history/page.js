@@ -30,7 +30,6 @@ import {
   CheckCircle,
   Loader2,
 } from 'lucide-react';
-import Image from 'next/image';
 
 export default function HistoryPage() {
   const [user, setUser] = useState(null);
@@ -59,9 +58,10 @@ export default function HistoryPage() {
     if (!searchQuery) {
       setFilteredDetections(detections);
     } else {
-      const filtered = detections.filter((detection) =>
-        detection.objectName.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const filtered = detections.filter((detection) => {
+        const name = detection.object_name || detection.objectName || '';
+        return name.toLowerCase().includes(searchQuery.toLowerCase());
+      });
       setFilteredDetections(filtered);
     }
   }, [searchQuery, detections]);
@@ -177,11 +177,11 @@ export default function HistoryPage() {
                     <TableRow key={detection.id}>
                       <TableCell>
                         <Badge variant="default" className="capitalize">
-                          {detection.objectName}
+                          {detection.object_name || detection.objectName}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-slate-600">
-                        {new Date(detection.createdAt).toLocaleDateString('en-US', {
+                        {new Date(detection.created_at || detection.createdAt).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
@@ -248,28 +248,18 @@ export default function HistoryPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Original Image</p>
-                  <Image
-                    src={selectedItem.imagePath}
+                  <img
+                    src={selectedItem.image_path || selectedItem.imagePath}
                     alt="Original"
                     className="w-full rounded-lg border border-slate-200"
-                    width={600}
-                    height={400}
-                    onError={(e) => {
-                      console.error('Failed to load original image:', e);
-                    }}
                   />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Heatmap</p>
-                  <Image
-                    src={selectedItem.heatmapPath}
+                  <img
+                    src={selectedItem.heatmap_path || selectedItem.heatmapPath}
                     alt="Heatmap"
                     className="w-full rounded-lg border border-slate-200"
-                    width={600}
-                    height={400}
-                    onError={(e) => {
-                      console.error('Failed to load heatmap:', e);
-                    }}
                   />
                 </div>
               </div>
@@ -279,7 +269,7 @@ export default function HistoryPage() {
                   Detected Object
                 </p>
                 <Badge variant="default" className="capitalize mb-4">
-                  {selectedItem.objectName}
+                  {selectedItem.object_name || selectedItem.objectName}
                 </Badge>
 
                 <p className="text-sm font-medium text-slate-700 mb-2">Recommendation</p>
@@ -288,7 +278,7 @@ export default function HistoryPage() {
 
               <p className="text-xs text-slate-500">
                 Analyzed on{' '}
-                {new Date(selectedItem.createdAt).toLocaleDateString('en-US', {
+                {new Date(selectedItem.created_at || selectedItem.createdAt).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
