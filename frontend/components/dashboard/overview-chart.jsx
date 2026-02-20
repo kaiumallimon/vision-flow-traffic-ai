@@ -4,7 +4,8 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recha
 
 export function OverviewChart({ data }) {
   return (
-    <ResponsiveContainer width="100%" height={350}>
+    <div style={{ width: '100%', height: 350 }}>
+    <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
         <XAxis
           dataKey="name"
@@ -29,5 +30,6 @@ export function OverviewChart({ data }) {
         />
       </BarChart>
     </ResponsiveContainer>
+    </div>
   )
 }
