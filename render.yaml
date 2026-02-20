@@ -14,6 +14,7 @@ services:
       pip install --upgrade pip
       pip install -r fastapi_requirements.txt
       prisma generate --schema=schema.prisma
+      prisma py fetch
       prisma db push --accept-data-loss --schema=schema.prisma
 
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
