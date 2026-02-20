@@ -59,7 +59,7 @@ export default function HistoryPage() {
       setFilteredDetections(detections);
     } else {
       const filtered = detections.filter((detection) =>
-        detection.object_name.toLowerCase().includes(searchQuery.toLowerCase())
+        detection.objectName.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredDetections(filtered);
     }
@@ -176,11 +176,11 @@ export default function HistoryPage() {
                     <TableRow key={detection.id}>
                       <TableCell>
                         <Badge variant="default" className="capitalize">
-                          {detection.object_name}
+                          {detection.objectName}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-slate-600">
-                        {new Date(detection.created_at).toLocaleDateString('en-US', {
+                        {new Date(detection.createdAt).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
@@ -248,7 +248,7 @@ export default function HistoryPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Original Image</p>
                   <img
-                    src={selectedItem.image_path}
+                    src={selectedItem.imagePath}
                     alt="Original"
                     className="w-full rounded-lg border border-slate-200"
                   />
@@ -256,7 +256,7 @@ export default function HistoryPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Heatmap</p>
                   <img
-                    src={selectedItem.heatmap_path}
+                    src={selectedItem.heatmapPath}
                     alt="Heatmap"
                     className="w-full rounded-lg border border-slate-200"
                   />
@@ -268,7 +268,7 @@ export default function HistoryPage() {
                   Detected Object
                 </p>
                 <Badge variant="default" className="capitalize mb-4">
-                  {selectedItem.object_name}
+                  {selectedItem.objectName}
                 </Badge>
 
                 <p className="text-sm font-medium text-slate-700 mb-2">Recommendation</p>
@@ -277,7 +277,7 @@ export default function HistoryPage() {
 
               <p className="text-xs text-slate-500">
                 Analyzed on{' '}
-                {new Date(selectedItem.created_at).toLocaleDateString('en-US', {
+                {new Date(selectedItem.createdAt).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
