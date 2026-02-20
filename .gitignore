@@ -32,3 +32,4 @@ Thumbs.db
 .env.local
 .env.development.local
 .env.example
+AZURE_CREDENTIALS.txt
