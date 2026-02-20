@@ -248,7 +248,7 @@ export default function HistoryPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Original Image</p>
                   <img
-                    src={`http://localhost:8000${selectedItem.image_path}`}
+                    src={selectedItem.image_path}
                     alt="Original"
                     className="w-full rounded-lg border border-slate-200"
                   />
@@ -256,7 +256,7 @@ export default function HistoryPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Heatmap</p>
                   <img
-                    src={`http://localhost:8000${selectedItem.heatmap_path}`}
+                    src={selectedItem.heatmap_path}
                     alt="Heatmap"
                     className="w-full rounded-lg border border-slate-200"
                   />
