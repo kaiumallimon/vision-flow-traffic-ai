@@ -9,6 +9,7 @@ import os
 
 from app.database import db_service
 from app.routes import auth_routes, detection_routes, subscription_routes, user_routes, admin_routes
+from app.config import settings
 
 
 @asynccontextmanager
@@ -40,13 +41,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure media directory exists
+# Ensure media directory exists and mount static files (local mode only)
 MEDIA_DIR = os.path.join(os.getcwd(), 'media')
 UPLOAD_DIR = os.path.join(MEDIA_DIR, 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Mount static files
-app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+if not settings.USE_CLOUDINARY:
+    app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
 # Include routers
 app.include_router(auth_routes.router, prefix="/api", tags=["Authentication"])

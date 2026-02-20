@@ -34,4 +34,14 @@ class Settings:
     YOLO_MODEL_PATH: str = "yolo11n_openvino_model/"
     CONFIDENCE_THRESHOLD: float = 0.25
 
+    # Cloudinary (production media storage)
+    CLOUDINARY_CLOUD_NAME: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+    CLOUDINARY_API_KEY:    str = os.getenv("CLOUDINARY_API_KEY", "")
+    CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
+
+    @property
+    def USE_CLOUDINARY(self) -> bool:
+        """True when all three Cloudinary credentials are present"""
+        return bool(self.CLOUDINARY_CLOUD_NAME and self.CLOUDINARY_API_KEY and self.CLOUDINARY_API_SECRET)
+
 settings = Settings()

@@ -13,3 +13,4 @@ numpy==1.26.3
 ultralytics==8.1.0
 requests==2.31.0
 openvino>=2024.0.0
+cloudinary>=1.36.0

@@ -16,6 +16,7 @@ from app.config import settings
 from app.services.email import send_detection_email
 from app.services.auth import get_current_user
 from app.models import TokenData
+from app.services import cloudinary_service
 
 router = APIRouter()
 
@@ -95,12 +96,27 @@ async def analyze_image(
                 ),
             )
 
+        # ── Upload to Cloudinary or fall back to local paths ────────
+        if settings.USE_CLOUDINARY:
+            ts_id = str(int(time.time()))
+            image_url   = cloudinary_service.upload_image(file_path,    f"input_{ts_id}")
+            heatmap_url = cloudinary_service.upload_image(heatmap_path, f"heatmap_{ts_id}")
+            # Clean up local temp files after upload
+            try:
+                os.remove(file_path)
+                os.remove(heatmap_path)
+            except Exception:
+                pass
+        else:
+            image_url   = f"{settings.MEDIA_URL}uploads/{file_name}"
+            heatmap_url = f"{settings.MEDIA_URL}uploads/{heatmap_name}"
+
         # Save detection
         detection = await db_service.create_detection(
             object_name=label,
             advice=advice,
-            image_path=f"/media/uploads/{file_name}",
-            heatmap_path=f"/media/uploads/{heatmap_name}",
+            image_path=image_url,
+            heatmap_path=heatmap_url,
             user_id=user.id
         )
 
@@ -117,8 +133,8 @@ async def analyze_image(
             id=detection.id,
             detected=label,
             advice=advice,
-            heatmap_url=f"{settings.MEDIA_URL}uploads/{heatmap_name}",
-            original_url=f"{settings.MEDIA_URL}uploads/{file_name}"
+            heatmap_url=heatmap_url,
+            original_url=image_url
         )
     except HTTPException:
         raise
@@ -181,12 +197,16 @@ async def delete_history(item_id: int):
             detail="Detection not found"
         )
 
-    # Delete files
+    # Delete files (Cloudinary or local)
     try:
-        if os.path.exists(detection.imagePath):
-            os.remove(detection.imagePath)
-        if os.path.exists(detection.heatmapPath):
-            os.remove(detection.heatmapPath)
+        if detection.imagePath and detection.imagePath.startswith("https://res.cloudinary.com"):
+            cloudinary_service.delete_image(cloudinary_service.extract_public_id(detection.imagePath))
+            cloudinary_service.delete_image(cloudinary_service.extract_public_id(detection.heatmapPath))
+        else:
+            if detection.imagePath and os.path.exists(detection.imagePath):
+                os.remove(detection.imagePath)
+            if detection.heatmapPath and os.path.exists(detection.heatmapPath):
+                os.remove(detection.heatmapPath)
     except Exception as e:
         print(f"File deletion error: {e}")
 
@@ -216,11 +236,13 @@ async def bulk_delete_history(
         if detection and detection.userId == user.id:
             # Delete files
             try:
-                if detection.imagePath and not detection.imagePath.startswith('/media/'):
-                    if os.path.exists(detection.imagePath):
+                if detection.imagePath and detection.imagePath.startswith("https://res.cloudinary.com"):
+                    cloudinary_service.delete_image(cloudinary_service.extract_public_id(detection.imagePath))
+                    cloudinary_service.delete_image(cloudinary_service.extract_public_id(detection.heatmapPath))
+                else:
+                    if detection.imagePath and os.path.exists(detection.imagePath):
                         os.remove(detection.imagePath)
-                if detection.heatmapPath and not detection.heatmapPath.startswith('/media/'):
-                    if os.path.exists(detection.heatmapPath):
+                    if detection.heatmapPath and os.path.exists(detection.heatmapPath):
                         os.remove(detection.heatmapPath)
             except Exception as e:
                 print(f"File deletion error: {e}")

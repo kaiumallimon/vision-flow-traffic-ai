@@ -19,7 +19,7 @@ backend/uploads/
 *.pt
 *.onnx
 runs/
-yolo11n_openvino_model/
+# yolo11n_openvino_model/ — must be committed so Render has the model
 
 # System
 .DS_Store
