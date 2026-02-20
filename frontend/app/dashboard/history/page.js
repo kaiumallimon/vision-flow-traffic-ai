@@ -30,6 +30,7 @@ import {
   CheckCircle,
   Loader2,
 } from 'lucide-react';
+import Image from 'next/image';
 
 export default function HistoryPage() {
   const [user, setUser] = useState(null);
@@ -247,18 +248,28 @@ export default function HistoryPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Original Image</p>
-                  <img
+                  <Image
                     src={selectedItem.imagePath}
                     alt="Original"
                     className="w-full rounded-lg border border-slate-200"
+                    width={600}
+                    height={400}
+                    onError={(e) => {
+                      console.error('Failed to load original image:', e);
+                    }}
                   />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Heatmap</p>
-                  <img
+                  <Image
                     src={selectedItem.heatmapPath}
                     alt="Heatmap"
                     className="w-full rounded-lg border border-slate-200"
+                    width={600}
+                    height={400}
+                    onError={(e) => {
+                      console.error('Failed to load heatmap:', e);
+                    }}
                   />
                 </div>
               </div>
