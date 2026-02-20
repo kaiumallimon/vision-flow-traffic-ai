@@ -32,13 +32,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration
+# CORS Configuration — origins built from env so any deployment URL works
+_frontend_url = os.getenv("FRONTEND_URL", "").rstrip("/")
+_allowed_origins = list(filter(None, [
+    "http://localhost:3000",
+    "https://vision-flow-traffic-ai.vercel.app",
+    _frontend_url,           # injected at runtime (Vercel / Azure / any)
+]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://vision-flow-traffic-ai.vercel.app",
-        "http://localhost:3000",
-    ],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

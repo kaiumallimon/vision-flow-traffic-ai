@@ -1,0 +1,96 @@
+# ──────────────────────────────────────────────────────────────────
+#  Vision Flow — Azure Container Apps CI/CD
+#
+#  Triggers on every push to `main`.
+#  Builds the Docker image, pushes it to Azure Container Registry,
+#  then deploys the new image to Azure Container Apps.
+#
+#  Required GitHub Secrets (Settings → Secrets → Actions):
+#    AZURE_CREDENTIALS          – service-principal JSON (see AZURE_SETUP.md)
+#    REGISTRY_LOGIN_SERVER      – e.g.  visionflowacr.azurecr.io
+#    REGISTRY_USERNAME          – ACR admin username
+#    REGISTRY_PASSWORD          – ACR admin password
+#    AZURE_RESOURCE_GROUP       – e.g.  visionflow-rg
+#    AZURE_CONTAINERAPP_NAME    – e.g.  visionflow-backend
+#    DATABASE_URL               – Neon connection string
+#    SECRET_KEY                 – JWT secret key
+#    FRONTEND_URL               – e.g.  https://your-app.vercel.app
+#    OPENROUTER_API_KEY         – OpenRouter API key
+#    CLOUDINARY_CLOUD_NAME
+#    CLOUDINARY_API_KEY
+#    CLOUDINARY_API_SECRET
+#    EMAIL_HOST_USER
+#    EMAIL_HOST_PASSWORD
+#    DEFAULT_FROM_EMAIL
+# ──────────────────────────────────────────────────────────────────
+
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:       # allow manual trigger from GitHub UI
+
+env:
+  IMAGE_NAME: visionflow-backend
+
+jobs:
+  build-and-deploy:
+    name: Build → Push → Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Log in to Azure ────────────────────────────────────
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── 3. Log in to Azure Container Registry ────────────────
+      - name: Log in to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      # ── 4. Build & push Docker image ──────────────────────────
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+
+      # ── 5. Deploy to Azure Container Apps ─────────────────────
+      - name: Deploy to Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          containerAppName: ${{ secrets.AZURE_CONTAINERAPP_NAME }}
+          imageToDeploy: ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          registryUrl: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          registryUsername: ${{ secrets.REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.REGISTRY_PASSWORD }}
+          # Pass all env vars into the container
+          environmentVariables: >
+            DATABASE_URL=secretref:database-url
+            SECRET_KEY=secretref:secret-key
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            OPENROUTER_API_KEY=secretref:openrouter-api-key
+            CLOUDINARY_CLOUD_NAME=secretref:cloudinary-cloud-name
+            CLOUDINARY_API_KEY=secretref:cloudinary-api-key
+            CLOUDINARY_API_SECRET=secretref:cloudinary-api-secret
+            EMAIL_HOST=smtp.gmail.com
+            EMAIL_PORT=465
+            EMAIL_HOST_USER=secretref:email-host-user
+            EMAIL_HOST_PASSWORD=secretref:email-host-password
+            DEFAULT_FROM_EMAIL=secretref:default-from-email
+            WEB_CONCURRENCY=1
+            YOLO_MODEL_PATH=yolo11n_openvino_model/
