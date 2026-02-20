@@ -122,12 +122,18 @@ class DatabaseService:
     # ── Subscription ──────────────────────────────────────────────────────
 
     async def get_active_subscription(self, user_id: int):
-        return await self._fetch_one(
-            '''SELECT * FROM "Subscription"
-               WHERE "userId"=$1 AND "isActive"=TRUE
-                 AND status='ACTIVE'::"SubscriptionStatus" AND "endAt">$2
+        row = await self._fetch_one(
+            '''SELECT s.*, a.key as api_key_value
+               FROM "Subscription" s
+               LEFT JOIN "ApiKey" a ON a.id=s."apiKeyId" AND a."isActive"=TRUE
+               WHERE s."userId"=$1 AND s."isActive"=TRUE
+                 AND s.status='ACTIVE'::"SubscriptionStatus" AND s."endAt">$2
                LIMIT 1''',
             user_id, datetime.utcnow())
+        if row:
+            from types import SimpleNamespace
+            row.apiKey = SimpleNamespace(key=row.api_key_value) if row.api_key_value else None
+        return row
 
     async def has_active_subscription(self, user_id: int) -> bool:
         return (await self.get_active_subscription(user_id)) is not None

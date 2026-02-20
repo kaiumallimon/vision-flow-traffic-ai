@@ -89,8 +89,8 @@ async def get_subscription_status(current_user: TokenData = Depends(get_current_
         plan_name=subscription.planName,
         daily_limit=subscription.dailyLimit,
         daily_used=subscription.dailyUsedToday,
-        start_at=subscription.startAt.isoformat(),
-        end_at=subscription.endAt.isoformat(),
+        start_at=subscription.startAt.isoformat() if subscription.startAt else None,
+        end_at=subscription.endAt.isoformat() if subscription.endAt else None,
         api_key=subscription.apiKey.key if subscription.apiKey else None,
     )
 
@@ -108,7 +108,7 @@ async def get_api_key(current_user: TokenData = Depends(get_current_user)):
             detail="No active API key. Complete payment and wait for admin approval.",
         )
 
-    return ApiKeyResponse(key=api_key.key, expires_at=api_key.expiresAt.isoformat())
+    return ApiKeyResponse(key=api_key.key, expires_at=api_key.expiresAt.isoformat() if api_key.expiresAt else None)
 
 
 @router.post("/orders", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)

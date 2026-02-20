@@ -177,8 +177,8 @@ class PaymentOrderResponse(BaseModel):
     user_note: Optional[str] = None
     admin_note: Optional[str] = None
     reviewed_at: Optional[str] = None
-    created_at: str
-    updated_at: str
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class AdminPaymentOrderResponse(PaymentOrderResponse):
@@ -194,7 +194,7 @@ class AdminOrderReviewRequest(BaseModel):
 
 class ApiKeyResponse(BaseModel):
     key: str
-    expires_at: str
+    expires_at: Optional[str] = None
 
 
 # Admin models
