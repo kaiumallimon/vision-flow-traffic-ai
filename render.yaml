@@ -14,7 +14,7 @@ services:
       pip install --upgrade pip
       pip install -r fastapi_requirements.txt
       prisma generate --schema=schema.prisma
-      prisma py fetch
+      PRISMA_BINARY_CACHE_DIR=/opt/render/project/src/.prisma-cache prisma py fetch
       prisma db push --accept-data-loss --schema=schema.prisma
 
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -38,6 +38,10 @@ services:
       # ── Frontend origin (CORS) ─────────────────────────────────
       - key: FRONTEND_URL
         sync: false          # e.g. https://your-app.vercel.app
+
+      # ── Prisma binary cache (keeps engine binary between build → runtime) ──
+      - key: PRISMA_BINARY_CACHE_DIR
+        value: /opt/render/project/src/.prisma-cache
 
       # ── YOLO Model (bundled in repo) ───────────────────────────
       - key: YOLO_MODEL_PATH
