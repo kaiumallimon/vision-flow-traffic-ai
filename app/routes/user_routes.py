@@ -28,7 +28,7 @@ async def get_profile(email: str = Query(...)):
         lastName=user.lastName,
         email=user.email,
         role=user.role,
-        createdAt=user.createdAt.isoformat(),
+        createdAt=user.createdAt.isoformat() if user.createdAt else None,
         totalDetections=len(user.detections) if user.detections else 0
     )
 

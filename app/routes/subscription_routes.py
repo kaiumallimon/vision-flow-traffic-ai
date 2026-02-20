@@ -25,6 +25,8 @@ router = APIRouter()
 
 
 def mask_bkash(number: str) -> str:
+    if not number:
+        return ""
     if len(number) <= 4:
         return number
     return f"{'*' * (len(number) - 4)}{number[-4:]}"
@@ -42,8 +44,8 @@ def map_order_response(order) -> PaymentOrderResponse:
         user_note=order.userNote,
         admin_note=order.adminNote,
         reviewed_at=order.reviewedAt.isoformat() if order.reviewedAt else None,
-        created_at=order.createdAt.isoformat(),
-        updated_at=order.updatedAt.isoformat(),
+        created_at=order.createdAt.isoformat() if order.createdAt else None,
+        updated_at=order.updatedAt.isoformat() if order.updatedAt else None,
     )
 
 

@@ -180,7 +180,7 @@ async def get_history(
             advice=d.advice,
             image_path=d.imagePath,
             heatmap_path=d.heatmapPath,
-            created_at=d.createdAt.isoformat()
+            created_at=d.createdAt.isoformat() if d.createdAt else None
         )
         for d in detections
     ]
