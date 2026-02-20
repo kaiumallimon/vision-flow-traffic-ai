@@ -184,7 +184,7 @@ class DatabaseService:
     def _attach_user(self, row):
         if row:
             row.user = SimpleNamespace(
-                firstName=row.firstName, lastName=row.lastName, email=row.user_email)
+                id=row.userId, firstName=row.firstName, lastName=row.lastName, email=row.user_email)
         return row
 
     async def get_orders(self, status=None):
