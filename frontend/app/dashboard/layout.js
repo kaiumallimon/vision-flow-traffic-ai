@@ -156,9 +156,8 @@ export default function DashboardLayout({ children }) {
             label="Profile Settings"
             onClick={onLinkClick}
           />
-          {user?.role === 'ADMIN' ? null : null}
+          </div>
         </div>
-      </div>
 
       {/* Footer */}
       <div className="border-t p-4">

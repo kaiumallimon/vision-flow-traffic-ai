@@ -19,10 +19,11 @@ RUN pip install --no-cache-dir -r fastapi_requirements.txt
 COPY app ./app
 COPY schema.prisma ./schema.prisma
 COPY yolo11n_openvino_model ./yolo11n_openvino_model
+COPY create_admin.py ./create_admin.py
 
 # Ensure media directory exists
 RUN mkdir -p /app/media/uploads
 
 EXPOSE 8000
 
-CMD ["bash", "-c", "prisma generate && prisma db push && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["bash", "-c", "prisma generate && prisma db push --accept-data-loss && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

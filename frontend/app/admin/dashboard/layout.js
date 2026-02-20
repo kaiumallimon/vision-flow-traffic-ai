@@ -39,7 +39,10 @@ export default function AdminDashboardLayout({ children }) {
     router.push('/login')
   }
 
-  const isActive = (path) => pathname === path || pathname.startsWith(path + '/')
+  const isActive = (path) => {
+    if (path === '/admin/dashboard') return pathname === '/admin/dashboard'
+    return pathname === path || pathname.startsWith(path + '/')
+  }
 
   const NavItem = ({ href, icon: Icon, label }) => (
     <Link
