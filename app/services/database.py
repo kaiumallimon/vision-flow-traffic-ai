@@ -1,413 +1,267 @@
 """
-Database service for Prisma operations
+Database service — asyncpg (replaces Prisma)
+Tables already exist in Neon (created when Prisma was used).
+Table names are PascalCase quoted because that's what Prisma created.
 """
-from prisma import Prisma
+import asyncpg
+import os
+import secrets
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
-import secrets
+from types import SimpleNamespace
 
 from app.models import PLAN_DAILY_LIMIT
 
 
-class DatabaseService:
-    """Service class for database operations"""
+def _row(record) -> Optional[SimpleNamespace]:
+    if record is None:
+        return None
+    return SimpleNamespace(**dict(record))
 
+
+def _rows(records) -> List[SimpleNamespace]:
+    return [_row(r) for r in records]
+
+
+class DatabaseService:
     def __init__(self):
-        self.prisma = Prisma()
+        self._pool: Optional[asyncpg.Pool] = None
 
     async def connect(self):
-        """Connect to database"""
-        if not self.prisma.is_connected():
-            await self.prisma.connect()
+        if self._pool is None:
+            self._pool = await asyncpg.create_pool(
+                dsn=os.environ["DATABASE_URL"],
+                min_size=1,
+                max_size=5,
+                statement_cache_size=0,
+            )
 
     async def disconnect(self):
-        """Disconnect from database"""
-        await self.prisma.disconnect()
+        if self._pool:
+            await self._pool.close()
+            self._pool = None
 
-    # ------------------------------------------------------------------ #
-    #  User operations                                                     #
-    # ------------------------------------------------------------------ #
+    async def _fetch_one(self, query: str, *args):
+        async with self._pool.acquire() as conn:
+            return _row(await conn.fetchrow(query, *args))
+
+    async def _fetch_all(self, query: str, *args):
+        async with self._pool.acquire() as conn:
+            return _rows(await conn.fetch(query, *args))
+
+    async def _execute(self, query: str, *args):
+        async with self._pool.acquire() as conn:
+            return await conn.execute(query, *args)
+
+    async def _fetchval(self, query: str, *args):
+        async with self._pool.acquire() as conn:
+            return await conn.fetchval(query, *args)
+
+    # ── User ──────────────────────────────────────────────────────────────
 
     async def get_user_by_email(self, email: str, include_detections: bool = False):
-        """Get user by email"""
-        include_clause = {"detections": True} if include_detections else None
-        return await self.prisma.user.find_unique(
-            where={"email": email},
-            include=include_clause,
-        )
+        return await self._fetch_one('SELECT * FROM "User" WHERE email=$1', email)
 
     async def get_user_by_id(self, user_id: int):
-        """Get user by ID"""
-        return await self.prisma.user.find_unique(where={"id": user_id})
+        return await self._fetch_one('SELECT * FROM "User" WHERE id=$1', user_id)
 
-    async def create_user(
-        self,
-        first_name: str,
-        last_name: str,
-        email: str,
-        password: str,
-        google_id: Optional[str] = None,
-        role: str = "USER",
-    ):
-        """Create a new user"""
-        data = {
-            "firstName": first_name,
-            "lastName": last_name,
-            "email": email,
-            "password": password,
-            "role": role,
-        }
-        if google_id:
-            data["googleId"] = google_id
-
-        return await self.prisma.user.create(data=data)
+    async def create_user(self, first_name, last_name, email, password,
+                          google_id=None, role="USER"):
+        return await self._fetch_one(
+            '''INSERT INTO "User"("firstName","lastName",email,password,"googleId",role,"createdAt")
+               VALUES($1,$2,$3,$4,$5,$6::\"UserRole\",NOW()) RETURNING *''',
+            first_name, last_name, email, password, google_id, role
+        )
 
     async def update_user(self, user_id: int, data: Dict[str, Any]):
-        """Update user information"""
-        return await self.prisma.user.update(
-            where={"id": user_id},
-            data=data,
-        )
+        sets, vals = [], []
+        col_map = {"firstName":"firstName","lastName":"lastName",
+                   "email":"email","password":"password","role":"role"}
+        for k, v in data.items():
+            col = col_map.get(k, k)
+            vals.append(v)
+            sets.append(f'"{col}"=${len(vals)}')
+        vals.append(user_id)
+        return await self._fetch_one(
+            f'UPDATE "User" SET {", ".join(sets)} WHERE id=${len(vals)} RETURNING *', *vals)
 
     async def authenticate_user(self, email: str, password: str):
-        """Authenticate user with email and password"""
-        return await self.prisma.user.find_first(
-            where={"email": email, "password": password}
-        )
+        return await self._fetch_one(
+            'SELECT * FROM "User" WHERE email=$1 AND password=$2', email, password)
 
     async def update_user_role(self, user_id: int, role: str):
-        """Update user role"""
-        return await self.prisma.user.update(
-            where={"id": user_id},
-            data={"role": role},
-        )
+        return await self._fetch_one(
+            'UPDATE "User" SET role=$1::\"UserRole\" WHERE id=$2 RETURNING *', role, user_id)
 
-    # ------------------------------------------------------------------ #
-    #  Detection operations                                                #
-    # ------------------------------------------------------------------ #
+    # ── Detection ─────────────────────────────────────────────────────────
 
-    async def create_detection(
-        self,
-        object_name: str,
-        advice: str,
-        image_path: str,
-        heatmap_path: str,
-        user_id: int,
-    ):
-        """Create a new detection record"""
-        return await self.prisma.detection.create(
-            data={
-                "objectName": object_name,
-                "advice": advice,
-                "imagePath": image_path,
-                "heatmapPath": heatmap_path,
-                "userId": user_id,
-            }
-        )
+    async def create_detection(self, object_name, advice, image_path, heatmap_path, user_id):
+        return await self._fetch_one(
+            '''INSERT INTO "Detection"("objectName",advice,"imagePath","heatmapPath","userId","createdAt")
+               VALUES($1,$2,$3,$4,$5,NOW()) RETURNING *''',
+            object_name, advice, image_path, heatmap_path, user_id)
 
-    async def get_detections(
-        self,
-        user_id: int,
-        search: Optional[str] = None,
-        date_from: Optional[datetime] = None,
-        date_to: Optional[datetime] = None,
-    ) -> List:
-        """Get user's detection history with optional filters"""
-        where_clause = {"userId": user_id}
-
+    async def get_detections(self, user_id, search=None, date_from=None, date_to=None):
+        conds = ['"userId"=$1']
+        vals = [user_id]
         if search:
-            where_clause["objectName"] = {"contains": search}
-
-        if date_from or date_to:
-            where_clause["createdAt"] = {}
-            if date_from:
-                where_clause["createdAt"]["gte"] = date_from
-            if date_to:
-                where_clause["createdAt"]["lte"] = date_to
-
-        return await self.prisma.detection.find_many(
-            where=where_clause,
-            order={"id": "desc"},
-        )
+            vals.append(f"%{search}%"); conds.append(f'"objectName" ILIKE ${len(vals)}')
+        if date_from:
+            vals.append(date_from); conds.append(f'"createdAt">=${len(vals)}')
+        if date_to:
+            vals.append(date_to); conds.append(f'"createdAt"<=${len(vals)}')
+        return await self._fetch_all(
+            f'SELECT * FROM "Detection" WHERE {" AND ".join(conds)} ORDER BY id DESC', *vals)
 
     async def get_detection_by_id(self, detection_id: int):
-        """Get detection by ID"""
-        return await self.prisma.detection.find_unique(where={"id": detection_id})
+        return await self._fetch_one('SELECT * FROM "Detection" WHERE id=$1', detection_id)
 
     async def delete_detection(self, detection_id: int):
-        """Delete a detection record"""
-        return await self.prisma.detection.delete(where={"id": detection_id})
+        await self._execute('DELETE FROM "Detection" WHERE id=$1', detection_id)
 
-    # ------------------------------------------------------------------ #
-    #  Subscription operations                                             #
-    # ------------------------------------------------------------------ #
+    # ── Subscription ──────────────────────────────────────────────────────
 
     async def get_active_subscription(self, user_id: int):
-        """Get active subscription for user"""
-        now = datetime.utcnow()
-        return await self.prisma.subscription.find_first(
-            where={
-                "userId": user_id,
-                "isActive": True,
-                "status": "ACTIVE",
-                "endAt": {"gt": now},
-            },
-            include={"apiKey": True},
-        )
+        return await self._fetch_one(
+            '''SELECT * FROM "Subscription"
+               WHERE "userId"=$1 AND "isActive"=TRUE
+                 AND status='ACTIVE'::"SubscriptionStatus" AND "endAt">$2
+               LIMIT 1''',
+            user_id, datetime.utcnow())
 
     async def has_active_subscription(self, user_id: int) -> bool:
-        """Check if user has active subscription"""
-        subscription = await self.get_active_subscription(user_id)
-        return subscription is not None
+        return (await self.get_active_subscription(user_id)) is not None
 
     async def check_and_increment_daily_usage(self, user_id: int) -> dict:
-        """
-        Check whether today's analysis count is within the daily limit.
-        Resets the counter automatically when a new UTC day starts.
-        Returns {"allowed": bool, "used": int, "limit": int, "reason": str|None}
-        """
-        subscription = await self.get_active_subscription(user_id)
-        if not subscription:
+        sub = await self.get_active_subscription(user_id)
+        if not sub:
             return {"allowed": False, "used": 0, "limit": 0, "reason": "no_subscription"}
 
         today = datetime.utcnow().date()
-        last_used = subscription.lastUsageDate
+        last = sub.lastUsageDate
+        if last is None or (hasattr(last, "date") and last.date() < today):
+            await self._execute(
+                'UPDATE "Subscription" SET "dailyUsedToday"=1,"lastUsageDate"=$1 WHERE id=$2',
+                datetime.utcnow(), sub.id)
+            return {"allowed": True, "used": 1, "limit": sub.dailyLimit, "reason": None}
 
-        # Reset counter if it's a new day
-        if last_used is None or last_used.date() < today:
-            await self.prisma.subscription.update(
-                where={"id": subscription.id},
-                data={
-                    "dailyUsedToday": 1,
-                    "lastUsageDate": datetime.utcnow(),
-                },
-            )
-            return {
-                "allowed": True,
-                "used": 1,
-                "limit": subscription.dailyLimit,
-                "reason": None,
-            }
+        if sub.dailyUsedToday >= sub.dailyLimit:
+            return {"allowed": False, "used": sub.dailyUsedToday,
+                    "limit": sub.dailyLimit, "reason": "daily_limit_reached"}
 
-        # Check limit
-        if subscription.dailyUsedToday >= subscription.dailyLimit:
-            return {
-                "allowed": False,
-                "used": subscription.dailyUsedToday,
-                "limit": subscription.dailyLimit,
-                "reason": "daily_limit_reached",
-            }
-
-        # Increment
-        await self.prisma.subscription.update(
-            where={"id": subscription.id},
-            data={"dailyUsedToday": {"increment": 1}},
-        )
-        return {
-            "allowed": True,
-            "used": subscription.dailyUsedToday + 1,
-            "limit": subscription.dailyLimit,
-            "reason": None,
-        }
+        await self._execute(
+            'UPDATE "Subscription" SET "dailyUsedToday"="dailyUsedToday"+1 WHERE id=$1', sub.id)
+        return {"allowed": True, "used": sub.dailyUsedToday+1,
+                "limit": sub.dailyLimit, "reason": None}
 
     async def get_user_api_key(self, user_id: int):
-        """Get active API key for user"""
-        now = datetime.utcnow()
-        return await self.prisma.apiKey.find_first(
-            where={
-                "userId": user_id,
-                "isActive": True,
-                "expiresAt": {"gt": now},
-            },
-            order={"id": "desc"},
-        )
+        return await self._fetch_one(
+            '''SELECT * FROM "ApiKey"
+               WHERE "userId"=$1 AND "isActive"=TRUE AND "expiresAt">$2
+               ORDER BY id DESC LIMIT 1''',
+            user_id, datetime.utcnow())
 
-    # ------------------------------------------------------------------ #
-    #  Payment order operations                                            #
-    # ------------------------------------------------------------------ #
+    # ── Payment orders ────────────────────────────────────────────────────
 
-    async def create_payment_order(
-        self,
-        user_id: int,
-        plan_name: str,
-        amount_bdt: float,
-        bkash_number: str,
-        transaction_id: str,
-        user_note: Optional[str] = None,
-    ):
-        """Create a payment order"""
-        return await self.prisma.paymentorder.create(
-            data={
-                "planName": plan_name,
-                "amountBdt": amount_bdt,
-                "currency": "BDT",
-                "bkashNumber": bkash_number,
-                "transactionId": transaction_id,
-                "status": "PENDING",
-                "userNote": user_note,
-                "userId": user_id,
-            }
-        )
+    async def create_payment_order(self, user_id, plan_name, amount_bdt,
+                                    bkash_number, transaction_id, user_note=None):
+        return await self._fetch_one(
+            '''INSERT INTO "PaymentOrder"
+               ("planName","amountBdt",currency,"bkashNumber","transactionId",
+                status,"userNote","userId","createdAt","updatedAt")
+               VALUES($1,$2,'BDT',$3,$4,'PENDING'::"OrderStatus",$5,$6,NOW(),NOW())
+               RETURNING *''',
+            plan_name, amount_bdt, bkash_number, transaction_id, user_note, user_id)
 
     async def get_order_by_transaction_id(self, transaction_id: str):
-        """Get payment order by transaction ID"""
-        return await self.prisma.paymentorder.find_unique(
-            where={"transactionId": transaction_id}
-        )
+        return await self._fetch_one(
+            'SELECT * FROM "PaymentOrder" WHERE "transactionId"=$1', transaction_id)
 
     async def get_user_orders(self, user_id: int):
-        """Get orders for a specific user"""
-        return await self.prisma.paymentorder.find_many(
-            where={"userId": user_id},
-            order={"id": "desc"},
-        )
+        return await self._fetch_all(
+            'SELECT * FROM "PaymentOrder" WHERE "userId"=$1 ORDER BY id DESC', user_id)
 
-    async def get_orders(self, status: Optional[str] = None):
-        """Get all payment orders, optionally by status"""
-        where_clause = {"status": status} if status else None
-        return await self.prisma.paymentorder.find_many(
-            where=where_clause,
-            include={"user": True},
-            order={"id": "desc"},
-        )
+    def _attach_user(self, row):
+        if row:
+            row.user = SimpleNamespace(
+                firstName=row.firstName, lastName=row.lastName, email=row.user_email)
+        return row
+
+    async def get_orders(self, status=None):
+        q = '''SELECT o.*,u."firstName",u."lastName",u.email as user_email
+               FROM "PaymentOrder" o JOIN "User" u ON o."userId"=u.id'''
+        rows = (await self._fetch_all(q + ' WHERE o.status=$1::"OrderStatus" ORDER BY o.id DESC', status)
+                if status else await self._fetch_all(q + ' ORDER BY o.id DESC'))
+        return [self._attach_user(r) for r in rows]
 
     async def get_order_by_id(self, order_id: int):
-        """Get payment order by ID"""
-        return await self.prisma.paymentorder.find_unique(
-            where={"id": order_id},
-            include={"user": True},
-        )
+        row = await self._fetch_one(
+            '''SELECT o.*,u."firstName",u."lastName",u.email as user_email
+               FROM "PaymentOrder" o JOIN "User" u ON o."userId"=u.id WHERE o.id=$1''',
+            order_id)
+        return self._attach_user(row)
 
-    async def approve_order(self, order_id: int, admin_note: Optional[str]):
-        """
-        Approve order and activate subscription with API key.
-        Always grants 30 days; daily limit is determined by the plan name.
-        """
+    async def approve_order(self, order_id: int, admin_note=None):
         order = await self.get_order_by_id(order_id)
-        if not order:
-            return None
-
-        if order.status != "PENDING":
-            return {"error": "Order already reviewed"}
+        if not order: return None
+        if order.status != "PENDING": return {"error": "Order already reviewed"}
 
         now = datetime.utcnow()
-        duration_days = 30
-        expires_at = now + timedelta(days=duration_days)
+        expires_at = now + timedelta(days=30)
+        daily_limit = PLAN_DAILY_LIMIT.get(order.planName.lower(), 10)
 
-        # Determine daily limit from plan name (case-insensitive)
-        plan_key = order.planName.lower()
-        daily_limit = PLAN_DAILY_LIMIT.get(plan_key, 10)
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    'UPDATE "Subscription" SET "isActive"=FALSE,status=\'EXPIRED\'::"SubscriptionStatus" WHERE "userId"=$1 AND "isActive"=TRUE',
+                    order.userId)
+                await conn.execute(
+                    'UPDATE "ApiKey" SET "isActive"=FALSE WHERE "userId"=$1 AND "isActive"=TRUE',
+                    order.userId)
 
-        # Deactivate existing subscriptions/API keys
-        await self.prisma.subscription.update_many(
-            where={"userId": order.userId, "isActive": True},
-            data={"isActive": False, "status": "EXPIRED"},
-        )
-        await self.prisma.apikey.update_many(
-            where={"userId": order.userId, "isActive": True},
-            data={"isActive": False},
-        )
+                api_key = _row(await conn.fetchrow(
+                    'INSERT INTO "ApiKey"(key,"isActive","createdAt","expiresAt","userId") VALUES($1,TRUE,NOW(),$2,$3) RETURNING *',
+                    f"vf_{secrets.token_urlsafe(32)}", expires_at, order.userId))
 
-        # Create new API key
-        raw_key = f"vf_{secrets.token_urlsafe(32)}"
-        api_key = await self.prisma.apikey.create(
-            data={
-                "key": raw_key,
-                "isActive": True,
-                "expiresAt": expires_at,
-                "userId": order.userId,
-            }
-        )
+                subscription = _row(await conn.fetchrow(
+                    '''INSERT INTO "Subscription"("planName",status,"isActive","dailyLimit","dailyUsedToday","startAt","endAt","createdAt","updatedAt","userId","apiKeyId")
+                       VALUES($1,'ACTIVE'::"SubscriptionStatus",TRUE,$2,0,$3,$4,NOW(),NOW(),$5,$6) RETURNING *''',
+                    order.planName, daily_limit, now, expires_at, order.userId, api_key.id))
 
-        # Create new subscription with daily limit
-        subscription = await self.prisma.subscription.create(
-            data={
-                "planName": order.planName,
-                "status": "ACTIVE",
-                "isActive": True,
-                "dailyLimit": daily_limit,
-                "dailyUsedToday": 0,
-                "startAt": now,
-                "endAt": expires_at,
-                "userId": order.userId,
-                "apiKeyId": api_key.id,
-            }
-        )
+                updated_order = _row(await conn.fetchrow(
+                    'UPDATE "PaymentOrder" SET status=\'APPROVED\'::"OrderStatus","adminNote"=$1,"reviewedAt"=$2,"subscriptionId"=$3,"updatedAt"=NOW() WHERE id=$4 RETURNING *',
+                    admin_note, now, subscription.id, order.id))
 
-        # Update order status
-        updated_order = await self.prisma.paymentorder.update(
-            where={"id": order.id},
-            data={
-                "status": "APPROVED",
-                "adminNote": admin_note,
-                "reviewedAt": now,
-                "subscriptionId": subscription.id,
-            },
-            include={"user": True},
-        )
+        return {"order": updated_order, "subscription": subscription, "api_key": api_key}
 
-        return {
-            "order": updated_order,
-            "subscription": subscription,
-            "api_key": api_key,
-        }
-
-    async def reject_order(self, order_id: int, admin_note: Optional[str]):
-        """Reject payment order"""
+    async def reject_order(self, order_id: int, admin_note=None):
         order = await self.get_order_by_id(order_id)
-        if not order:
-            return None
+        if not order: return None
+        if order.status != "PENDING": return {"error": "Order already reviewed"}
+        return await self._fetch_one(
+            'UPDATE "PaymentOrder" SET status=\'REJECTED\'::"OrderStatus","adminNote"=$1,"reviewedAt"=$2,"updatedAt"=NOW() WHERE id=$3 RETURNING *',
+            admin_note, datetime.utcnow(), order_id)
 
-        if order.status != "PENDING":
-            return {"error": "Order already reviewed"}
-
-        return await self.prisma.paymentorder.update(
-            where={"id": order.id},
-            data={
-                "status": "REJECTED",
-                "adminNote": admin_note,
-                "reviewedAt": datetime.utcnow(),
-            },
-            include={"user": True},
-        )
-
-    # ------------------------------------------------------------------ #
-    #  Admin operations                                                    #
-    # ------------------------------------------------------------------ #
+    # ── Admin ─────────────────────────────────────────────────────────────
 
     async def get_admin_stats(self) -> dict:
-        """Get system-wide statistics for the admin dashboard"""
-        total_users = await self.prisma.user.count()
-        total_detections = await self.prisma.detection.count()
-        pending_orders = await self.prisma.paymentorder.count(
-            where={"status": "PENDING"}
-        )
-        active_subscriptions = await self.prisma.subscription.count(
-            where={"isActive": True, "status": "ACTIVE"}
-        )
-
-        approved_orders = await self.prisma.paymentorder.find_many(
-            where={"status": "APPROVED"}
-        )
-        total_revenue = sum(o.amountBdt for o in approved_orders)
-
         return {
-            "total_users": total_users,
-            "total_detections": total_detections,
-            "total_revenue_bdt": total_revenue,
-            "pending_orders": pending_orders,
-            "active_subscriptions": active_subscriptions,
+            "total_users":          int(await self._fetchval('SELECT COUNT(*) FROM "User"')),
+            "total_detections":     int(await self._fetchval('SELECT COUNT(*) FROM "Detection"')),
+            "total_revenue_bdt":    float(await self._fetchval('SELECT COALESCE(SUM("amountBdt"),0) FROM "PaymentOrder" WHERE status=\'APPROVED\'::"OrderStatus"')),
+            "pending_orders":       int(await self._fetchval('SELECT COUNT(*) FROM "PaymentOrder" WHERE status=\'PENDING\'::"OrderStatus"')),
+            "active_subscriptions": int(await self._fetchval('SELECT COUNT(*) FROM "Subscription" WHERE "isActive"=TRUE AND status=\'ACTIVE\'::"SubscriptionStatus"')),
         }
 
     async def get_all_users(self, skip: int = 0, limit: int = 100):
-        """Get all users with subscription and detection counts for admin"""
-        return await self.prisma.user.find_many(
-            skip=skip,
-            take=limit,
-            include={"subscriptions": True, "detections": True},
-            order={"id": "desc"},
-        )
+        users = await self._fetch_all(
+            'SELECT * FROM "User" ORDER BY id DESC OFFSET $1 LIMIT $2', skip, limit)
+        for user in users:
+            user.subscriptions = await self._fetch_all(
+                'SELECT * FROM "Subscription" WHERE "userId"=$1', user.id)
+            user.detections = await self._fetch_all(
+                'SELECT id FROM "Detection" WHERE "userId"=$1', user.id)
+        return users
 
 
-# Singleton instance
 db_service = DatabaseService()

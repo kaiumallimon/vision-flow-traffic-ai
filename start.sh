@@ -23,13 +23,6 @@ success "Virtual environment activated"
 # ── Load .env ─────────────────────────────────────────────────────
 set -a; source .env; set +a
 
-# ── Prisma ────────────────────────────────────────────────────────
-info "Generating Prisma client..."
-prisma generate --schema=schema.prisma 2>&1 | tail -2
-
-info "Pushing schema to Neon..."
-prisma db push --accept-data-loss --schema=schema.prisma 2>&1 | tail -2
-success "Database schema is up to date"
 
 # ── Admin account ─────────────────────────────────────────────────
 info "Ensuring admin account exists..."

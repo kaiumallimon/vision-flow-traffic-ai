@@ -1,84 +1,69 @@
 #!/usr/bin/env python3
 """
-Admin Account Creation Script
-Run inside the backend container:
-  docker exec -it <backend_container> python create_admin.py
-
-Or with custom credentials:
-  docker exec -it <backend_container> python create_admin.py \
-      --email admin@visionflow.ai --password MyStr0ngPass!
+Admin Account Creation Script (asyncpg)
+Usage:
+  python create_admin.py
+  python create_admin.py --email admin@example.com --password SecurePass1
 """
 import asyncio
 import argparse
 import os
 import sys
 
-from prisma import Prisma
+import asyncpg
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    print("[!] DATABASE_URL environment variable not set.")
+    sys.exit(1)
 
 
 async def create_admin(email: str, password: str, first_name: str, last_name: str):
-    db = Prisma()
-    await db.connect()
-
+    conn = await asyncpg.connect(DATABASE_URL)
     try:
-        # Check existing
-        existing = await db.user.find_unique(where={"email": email})
+        existing = await conn.fetchrow('SELECT id, role FROM "User" WHERE email = $1', email)
         if existing:
-            if existing.role == "ADMIN":
-                print(f"[!] Admin with email '{email}' already exists (id={existing.id}).")
+            if existing["role"] == "ADMIN":
+                print(f"[!] Admin with email '{email}' already exists (id={existing['id']}).")
             else:
-                # Upgrade existing user to ADMIN
-                updated = await db.user.update(
-                    where={"id": existing.id},
-                    data={"role": "ADMIN"},
+                await conn.execute(
+                    'UPDATE "User" SET role = $1::\"UserRole\" WHERE id = $2',
+                    "ADMIN", existing["id"]
                 )
-                print(f"[+] Existing user '{email}' upgraded to ADMIN (id={updated.id}).")
+                print(f"[+] Existing user '{email}' upgraded to ADMIN (id={existing['id']}).")
             return
 
-        user = await db.user.create(
-            data={
-                "firstName": first_name,
-                "lastName": last_name,
-                "email": email,
-                "password": password,
-                "role": "ADMIN",
-            }
+        row = await conn.fetchrow(
+            '''
+            INSERT INTO "User" ("firstName", "lastName", email, password, role)
+            VALUES ($1, $2, $3, $4, $5::"UserRole")
+            RETURNING id, "firstName", "lastName", email, role
+            ''',
+            first_name, last_name, email, password, "ADMIN"
         )
         print(f"[+] Admin account created successfully!")
-        print(f"    ID    : {user.id}")
-        print(f"    Name  : {user.firstName} {user.lastName}")
-        print(f"    Email : {user.email}")
-        print(f"    Role  : {user.role}")
+        print(f"    ID    : {row['id']}")
+        print(f"    Name  : {row['firstName']} {row['lastName']}")
+        print(f"    Email : {row['email']}")
+        print(f"    Role  : {row['role']}")
     finally:
-        await db.disconnect()
+        await conn.close()
 
 
 def main():
     parser = argparse.ArgumentParser(description="Create or promote an admin account")
-    parser.add_argument(
-        "--email",
-        default=os.getenv("ADMIN_EMAIL", "admin@visionflow.ai"),
-        help="Admin email address",
-    )
-    parser.add_argument(
-        "--password",
-        default=os.getenv("ADMIN_PASSWORD", "Admin@1234"),
-        help="Admin password (plain text, stored as-is)",
-    )
-    parser.add_argument("--first-name", default="Super", help="First name")
-    parser.add_argument("--last-name",  default="Admin",  help="Last name")
-
+    parser.add_argument("--email",      default=os.getenv("ADMIN_EMAIL",    "admin@visionflow.ai"))
+    parser.add_argument("--password",   default=os.getenv("ADMIN_PASSWORD", "Admin@1234"))
+    parser.add_argument("--first-name", default="Super")
+    parser.add_argument("--last-name",  default="Admin")
     args = parser.parse_args()
 
-    print(f"[*] Connecting to database…")
+    print(f"[*] Connecting to database...")
     print(f"[*] Creating admin: {args.email}")
-
-    asyncio.run(create_admin(
-        email=args.email,
-        password=args.password,
-        first_name=args.first_name,
-        last_name=args.last_name,
-    ))
+    asyncio.run(create_admin(args.email, args.password, args.first_name, args.last_name))
 
 
 if __name__ == "__main__":
