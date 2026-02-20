@@ -69,6 +69,8 @@ jobs:
             ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
 
       # ── 5. Deploy to Azure Container Apps ─────────────────────
+      # Env vars & secrets are already configured on the Container App via
+      # Azure CLI — this step just swaps in the new image.
       - name: Deploy to Container Apps
         uses: azure/container-apps-deploy-action@v1
         with:
@@ -78,19 +80,3 @@ jobs:
           registryUrl: ${{ secrets.REGISTRY_LOGIN_SERVER }}
           registryUsername: ${{ secrets.REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.REGISTRY_PASSWORD }}
-          # Pass all env vars into the container
-          environmentVariables: >
-            DATABASE_URL=secretref:database-url
-            SECRET_KEY=secretref:secret-key
-            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
-            OPENROUTER_API_KEY=secretref:openrouter-api-key
-            CLOUDINARY_CLOUD_NAME=secretref:cloudinary-cloud-name
-            CLOUDINARY_API_KEY=secretref:cloudinary-api-key
-            CLOUDINARY_API_SECRET=secretref:cloudinary-api-secret
-            EMAIL_HOST=smtp.gmail.com
-            EMAIL_PORT=465
-            EMAIL_HOST_USER=secretref:email-host-user
-            EMAIL_HOST_PASSWORD=secretref:email-host-password
-            DEFAULT_FROM_EMAIL=secretref:default-from-email
-            WEB_CONCURRENCY=1
-            YOLO_MODEL_PATH=yolo11n_openvino_model/
