@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────
 #  Vision Flow — Azure Container Apps CI/CD
 #
-#  Triggers on every push to `main`.
+#  Triggers on every push to `azure-cloud`.
 #  Builds the Docker image, pushes it to Azure Container Registry,
 #  then deploys the new image to Azure Container Apps.
 #
@@ -28,7 +28,7 @@ name: Deploy to Azure Container Apps
 
 on:
   push:
-    branches: [main]
+    branches: [azure-cloud]
   workflow_dispatch:       # allow manual trigger from GitHub UI
 
 env:
